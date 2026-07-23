@@ -13,44 +13,32 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Configurar Java 17 (JDK)
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Generar proyecto Android automáticamente con Capacitor
+      - name: Clonar motor de compilación
         run: |
-          # 1. Crear carpeta web y mover archivos
-          mkdir -p www
-          cp index.html www/
-          if [ -f icon.png ]; then cp icon.png www/; fi
-          if [ -f icon.PNG ]; then cp icon.PNG www/; fi
+          git clone https://github.com/jipok/WebAPK.git engine
+          cd engine
+          mkdir -p app/src/main/assets
           
-          # 2. Inicializar Node y Capacitor
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          # Copiar archivos del repositorio al proyecto
+          if [ -f ../index.html ]; then cp ../index.html app/src/main/assets/; fi
+          if [ -f ../icon.PNG ]; then cp ../icon.PNG app/src/main/res/mipmap-xxhdpi/ic_launcher.png; fi
+          if [ -f ../icon.png ]; then cp ../icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png; fi
           
-          # 3. Crear plataforma Android
-          npx cap init "ControlVisitas" "com.miempresa.controlvisitas" --web-dir www
-          npx cap add android
-          npx cap copy android
+          chmod +x gradlew
 
-      - name: Dar permisos de ejecución a Gradle
-        run: chmod +x android/gradlew
-
-      - name: Compilar APK Final
+      - name: Compilar APK
         run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
+          cd engine
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Subir APK como Artefacto Descargable
+      - name: Subir APK como Artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: app-control-visitas
+          path: engine/app/build/outputs/apk/debug/*.apk
