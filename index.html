@@ -849,6 +849,16 @@
                 }
                 renderClients();
             });
+
+            // Cerrar dropdowns manuales al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#manualMergeModal')) {
+                    const srcDrop = document.getElementById('manualSourceDropdown');
+                    const tgtDrop = document.getElementById('manualTargetDropdown');
+                    if (srcDrop) srcDrop.classList.add('hidden');
+                    if (tgtDrop) tgtDrop.classList.add('hidden');
+                }
+            });
         }
 
         function clearSearch() {
@@ -1056,6 +1066,238 @@
             modal.classList.remove('flex');
             modal.classList.add('hidden');
         }
+
+        // ==========================================
+        // FUNCIONES IMPLEMENTADAS PARA HERRAMIENTAS
+        // ==========================================
+
+        function openManualMergeModal() {
+            document.getElementById('manualSourceIndex').value = '';
+            document.getElementById('manualSourceSearch').value = '';
+            document.getElementById('manualTargetIndex').value = '';
+            document.getElementById('manualTargetSearch').value = '';
+            document.getElementById('manualSourceDropdown').classList.add('hidden');
+            document.getElementById('manualTargetDropdown').classList.add('hidden');
+            openModal('manualMergeModal');
+        }
+
+        function showMergeDropdown(type) {
+            const dropdown = document.getElementById(`manual${type === 'source' ? 'Source' : 'Target'}Dropdown`);
+            dropdown.classList.remove('hidden');
+            filterMergeDropdown(type);
+        }
+
+        function filterMergeDropdown(type) {
+            const isSource = type === 'source';
+            const inputVal = document.getElementById(`manual${isSource ? 'Source' : 'Target'}Search`).value.toLowerCase().trim();
+            const dropdown = document.getElementById(`manual${isSource ? 'Source' : 'Target'}Dropdown`);
+            
+            dropdown.innerHTML = '';
+            
+            const filtered = clients.filter(c => {
+                const matchId = c.id && c.id.toLowerCase().includes(inputVal);
+                const matchName = c.name && c.name.toLowerCase().includes(inputVal);
+                return matchId || matchName;
+            });
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = `<div class="p-3 text-xs text-slate-500 text-center">No se encontraron clientes</div>`;
+                return;
+            }
+
+            filtered.forEach(client => {
+                const originalIndex = clients.findIndex(c => c === client);
+                const div = document.createElement('div');
+                div.className = "p-2.5 hover:bg-slate-800 cursor-pointer text-xs flex items-center justify-between border-b border-slate-800/50";
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 truncate pr-2">
+                        <span class="font-mono text-emerald-400">#${client.id || 'S/N'}</span>
+                        <span class="text-white truncate font-medium">${escapeHTML(client.name)}</span>
+                    </div>
+                    <span class="text-slate-400 text-[10px]">${client.visitDates ? client.visitDates.length : 0} visitas</span>
+                `;
+                div.onclick = () => {
+                    document.getElementById(`manual${isSource ? 'Source' : 'Target'}Index`).value = originalIndex;
+                    document.getElementById(`manual${isSource ? 'Source' : 'Target'}Search`).value = `#${client.id || 'S/N'} - ${client.name}`;
+                    dropdown.classList.add('hidden');
+                };
+                dropdown.appendChild(div);
+            });
+        }
+
+        function executeManualMerge() {
+            const srcIdxStr = document.getElementById('manualSourceIndex').value;
+            const tgtIdxStr = document.getElementById('manualTargetIndex').value;
+
+            if (srcIdxStr === "" || tgtIdxStr === "") {
+                alert("Debes seleccionar tanto un cliente origen como un cliente destino.");
+                return;
+            }
+
+            const srcIdx = parseInt(srcIdxStr);
+            const tgtIdx = parseInt(tgtIdxStr);
+
+            if (srcIdx === tgtIdx) {
+                alert("El cliente origen y destino no pueden ser el mismo.");
+                return;
+            }
+
+            const sourceClient = clients[srcIdx];
+            const targetClient = clients[tgtIdx];
+
+            if (!confirm(`¿Estás seguro de fusionar "${sourceClient.name}" dentro de "${targetClient.name}"? El cliente origen será eliminado.`)) {
+                return;
+            }
+
+            // Unir fechas sin duplicados
+            if (!targetClient.visitDates) targetClient.visitDates = [];
+            if (sourceClient.visitDates && sourceClient.visitDates.length > 0) {
+                sourceClient.visitDates.forEach(date => {
+                    if (!targetClient.visitDates.includes(date)) {
+                        targetClient.visitDates.push(date);
+                    }
+                });
+                targetClient.visitDates.sort((a, b) => b.localeCompare(a));
+            }
+
+            // Eliminar cliente origen
+            clients.splice(srcIdx, 1);
+
+            saveToStorage();
+            renderClients();
+            closeModal('manualMergeModal');
+            alert("¡Clientes combinados exitosamente!");
+        }
+
+        function openSimilarityMergeModal() {
+            const container = document.getElementById('similarityMergeListContainer');
+            container.innerHTML = '';
+
+            const normalizeStr = (str) => {
+                return str.toUpperCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^A-Z0-9\s]/g, "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+            };
+
+            const getLevenshteinDistance = (a, b) => {
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+                for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                            matrix[i][j] = matrix[i - 1][j - 1];
+                        } else {
+                            matrix[i][j] = Math.min(
+                                matrix[i - 1][j - 1] + 1,
+                                Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                            );
+                        }
+                    }
+                }
+                return matrix[b.length][a.length];
+            };
+
+            let similarPairs = [];
+            let checkedIndices = new Set();
+
+            for (let i = 0; i < clients.length; i++) {
+                if (checkedIndices.has(i)) continue;
+                for (let j = i + 1; j < clients.length; j++) {
+                    if (checkedIndices.has(j)) continue;
+
+                    const name1 = normalizeStr(clients[i].name);
+                    const name2 = normalizeStr(clients[j].name);
+
+                    if (name1.length < 3 || name2.length < 3) continue;
+
+                    let isSimilar = false;
+                    if (name1 === name2 || name1.includes(name2) || name2.includes(name1)) {
+                        isSimilar = true;
+                    } else {
+                        const longer = name1.length > name2.length ? name1 : name2;
+                        const shorter = name1.length > name2.length ? name2 : name1;
+                        const dist = getLevenshteinDistance(longer, shorter);
+                        const score = (longer.length - dist) / longer.length;
+                        if (score >= 0.78) {
+                            isSimilar = true;
+                        }
+                    }
+
+                    if (isSimilar) {
+                        similarPairs.push({ idxA: i, idxB: j });
+                    }
+                }
+            }
+
+            if (similarPairs.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No se detectaron clientes con nombres excesivamente similares.</p>`;
+            } else {
+                similarPairs.forEach(pair => {
+                    const clientA = clients[pair.idxA];
+                    const clientB = clients[pair.idxB];
+
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2.5 text-xs";
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between text-slate-300 font-medium">
+                            <span>Posible duplicado detectado:</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
+                                <span class="font-mono text-emerald-400">#${clientA.id || 'S/N'}</span>
+                                <p class="text-white font-bold truncate">${escapeHTML(clientA.name)}</p>
+                                <span class="text-[10px] text-slate-400">${clientA.visitDates ? clientA.visitDates.length : 0} visitas</span>
+                            </div>
+                            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
+                                <span class="font-mono text-emerald-400">#${clientB.id || 'S/N'}</span>
+                                <p class="text-white font-bold truncate">${escapeHTML(clientB.name)}</p>
+                                <span class="text-[10px] text-slate-400">${clientB.visitDates ? clientB.visitDates.length : 0} visitas</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-1">
+                            <button onclick="mergeSimilarPair(${pair.idxA}, ${pair.idxB})" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors shadow flex items-center gap-1.5">
+                                <i class="fa-solid fa-code-merge"></i> Fusionar (Mantener A / Absorber B)
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            openModal('similarityMergeModal');
+        }
+
+        function mergeSimilarPair(idxA, idxB) {
+            if (!clients[idxA] || !clients[idxB]) return;
+
+            const clientA = clients[idxA];
+            const clientB = clients[idxB];
+
+            if (!confirm(`¿Fusionar "${clientB.name}" dentro de "${clientA.name}"?`)) return;
+
+            if (!clientA.visitDates) clientA.visitDates = [];
+            if (clientB.visitDates && clientB.visitDates.length > 0) {
+                clientB.visitDates.forEach(date => {
+                    if (!clientA.visitDates.includes(date)) {
+                        clientA.visitDates.push(date);
+                    }
+                });
+                clientA.visitDates.sort((a, b) => b.localeCompare(a));
+            }
+
+            clients.splice(idxB, 1);
+
+            saveToStorage();
+            renderClients();
+            openSimilarityMergeModal(); // Recargar la lista de similares restante
+            alert("¡Fusión completada con éxito!");
+        }
+
+        // ==========================================
 
         async function handleImageUpload(event) {
             const file = event.target.files[0];
