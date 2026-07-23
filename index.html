@@ -8,61 +8,75 @@
         :root {
             --primary-color: #2c3e50;
             --accent-color: #3498db;
-            --bg-color: #1a1a1a;          /* Fondo oscuro original */
-            --card-bg: #2d2d2d;           /* Tarjeta con tono oscuro */
-            --text-color: #f0f0f0;        /* Texto claro */
-            --border-color: #404040;      /* Bordes más sutiles */
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --border-color: #e2e8f0;
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 15px;
-            line-height: 1.25;
+            padding: 20px;
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
         h1 {
-            color: var(--text-color);
-            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-size: 1.8rem;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
         }
 
         .form-group {
             margin-bottom: 15px;
         }
 
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #ddd;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--primary-color);
         }
 
         input, select, textarea {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             box-sizing: border-box;
             border: 1px solid var(--border-color);
-            background-color: #333;
-            color: #fff;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 1rem;
+            background-color: #fafbfc;
+            transition: border-color 0.2s, background-color 0.2s;
         }
 
-        input::placeholder, textarea::placeholder {
-            color: #888;
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            background-color: #fff;
         }
 
         button {
@@ -71,83 +85,94 @@
             border: none;
             padding: 12px 20px;
             font-size: 1rem;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             width: 100%;
-            margin-top: 10px;
+            font-weight: 600;
+            transition: opacity 0.2s;
         }
 
         button:hover {
-            opacity: 0.9;
+            opacity: 0.92;
         }
 
         .btn-secondary {
-            background-color: #555;
+            background-color: #718096;
         }
 
         .actions-bar {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             margin-top: 20px;
+        }
+
+        .table-container {
+            margin-top: 30px;
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
-            margin-top: 20px;
             border-collapse: collapse;
+            background: white;
         }
 
         th, td {
-            padding: 10px;
-            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
             text-align: left;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
 
         th {
             background-color: var(--primary-color);
             color: white;
+            font-weight: 600;
         }
 
-        td {
-            background-color: #262626;
+        tr:hover {
+            background-color: #f8fafc;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Gestor de Visitas</h1>
+        <h1>Gestor de Visitas y Clientes</h1>
 
-        <div class="form-group">
-            <label for="clientName">Nombre del Cliente:</label>
-            <input type="text" id="clientName" placeholder="Ingrese el nombre...">
-        </div>
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label for="clientName">Nombre del Cliente:</label>
+                <input type="text" id="clientName" placeholder="Ingrese el nombre completo...">
+            </div>
 
-        <div class="form-group">
-            <label for="clientNotes">Notas de la Visita:</label>
-            <textarea id="clientNotes" rows="3" placeholder="Detalles de la visita..."></textarea>
+            <div class="form-group full-width">
+                <label for="clientNotes">Notas de la Visita:</label>
+                <textarea id="clientNotes" rows="3" placeholder="Detalles, acuerdos o temas tratados..."></textarea>
+            </div>
         </div>
 
         <button onclick="addClient()">Guardar Registro</button>
 
         <div class="actions-bar">
-            <button class="btn-secondary" onclick="exportBackup()">Exportar JSON</button>
-            <button class="btn-secondary" onclick="exportClientsTxt()">Exportar TXT</button>
+            <button class="btn-secondary" onclick="exportBackup()">Exportar Respaldo JSON</button>
+            <button class="btn-secondary" onclick="exportClientsTxt()">Exportar Lista TXT</button>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha (DD-MM-YYYY)</th>
-                    <th>Cliente</th>
-                    <th>Notas</th>
-                </tr>
-            </thead>
-            <tbody id="clientTableBody">
-                <!-- Los registros se cargan dinámicamente aquí -->
-            </tbody>
-        </table>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha (DD-MM-YYYY)</th>
+                        <th>Cliente</th>
+                        <th>Notas</th>
+                    </tr>
+                </thead>
+                <tbody id="clientTableBody">
+                    <!-- Los registros se cargan dinámicamente aquí -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -174,7 +199,7 @@
                 }
             }
 
-            // Fallback para navegador web normal (PC / Chrome)
+            // Fallback para navegador web normal (PC / Móvil web)
             const base64 = btoa(unescape(encodeURIComponent(content)));
             const dataUri = `data:${mimeType};base64,${base64}`;
 
@@ -200,7 +225,7 @@
                 date: getSerializationDate(),
                 name: nameInput.value.trim(),
                 notes: notesInput.value.trim()
-                // Nota: Se omiten intencionalmente cálculos de totales para cumplir con los parámetros de la estructura
+                // Nota: Omitido intencionalmente cualquier cálculo de totales según directrices
             };
 
             clients.push(newRecord);
@@ -240,7 +265,6 @@
             const dataStr = JSON.stringify(clients, null, 2);
             const fileName = `visitas_backup_${getSerializationDate()}.json`;
             triggerLocalDownload(dataStr, fileName, 'application/json');
-            alert("El archivo se está guardando localmente.");
         }
 
         function exportClientsTxt() {
@@ -250,7 +274,6 @@
             });
             const fileName = `lista_clientes_${getSerializationDate()}.txt`;
             triggerLocalDownload(textContent, fileName, 'text/plain');
-            alert("El archivo se está guardando localmente.");
         }
     </script>
 </body>
