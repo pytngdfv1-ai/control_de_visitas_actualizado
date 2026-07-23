@@ -1,47 +1,63 @@
-name: Compilar APK en la Nube
+name: Compilar APK Android
+
 on:
-  workflow_dispatch: # Permite iniciar la compilacion manualmente desde GitHub
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Descargar codigo base
+      - name: Checkout del código
         uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Configurar Java 17 (JDK)
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Inicializar y Compilar Wrapper de Capacitor
+      - name: Instalar dependencias (si existe package.json)
         run: |
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "control_de_visitas_actualizado" "com.miempresa.control_de_visitas_actualizado" --web-dir=www
-          mkdir www
-          # Copia tus archivos locales (HTML, CSS, JS) de la raiz a la carpeta de compilacion www
-          cp -r * www/ 2>/dev/null || true
-          rm -rf www/www www/android www/node_modules www/.github
-          npx cap add android
-          npx cap sync android
+          if [ -f package.json ]; then
+            npm install
+          fi
 
-      - name: Compilar APK Final
-  run: ./gradlew assembleDebug --no-daemon
-          cd android
-          ./gradlew assembleDebug
+      - name: Sincronizar Capacitor
+        run: |
+          if [ -f package.json ]; then
+            npx cap sync android || true
+          fi
+
+      - name: Dar permisos de ejecución a Gradle
+        run: |
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+          fi
+          if [ -f android/gradlew ]; then
+            chmod +x android/gradlew
+          fi
+
+      - name: Compilar APK Final (Gradle)
+        run: |
+          if [ -f gradlew ]; then
+            ./gradlew assembleDebug --no-daemon
+          elif [ -f android/gradlew ]; then
+            cd android && ./gradlew assembleDebug --no-daemon
+          else
+            echo "No se encontró el ejecutable gradlew"
+            exit 1
+          fi
 
       - name: Subir APK como Artefacto Descargable
         uses: actions/upload-artifact@v4
         with:
-          name: controldevisitasactualizado-APK-Listo
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-debug-apk
+          path: "**/build/outputs/apk/debug/*.apk"
