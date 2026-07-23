@@ -39,30 +39,41 @@ jobs:
           npx cap add android
           npx cap copy android
 
-      - name: Inyectar interfaz nativa de guardado
+      - name: Reescribir MainActivity con puente nativo
         run: |
-          MAIN_FILE="android/app/src/main/java/com/controlvisitas/app/MainActivity.java"
-          # Inserta las importaciones y el puente justo dentro de la clase MainActivity
-          sed -i '/public class MainActivity extends BridgeActivity {/a \
-              @Override\
-              public void onStart() {\
-                  super.onStart();\
-                  android.webkit.WebView webView = this.bridge.getWebView();\
-                  webView.addJavascriptInterface(new Object() {\
-                      @android.webkit.JavascriptInterface\
-                      public void guardarJSON(String filename, String content) {\
-                          try {\
-                              java.io.File path = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);\
-                              java.io.File file = new java.io.File(path, filename);\
-                              java.io.FileWriter writer = new java.io.FileWriter(file);\
-                              writer.append(content);\
-                              writer.flush();\
-                              writer.close();\
-                              runOnUiThread(() -> android.widget.Toast.makeText(getContext(), "Guardado en Descargas", android.widget.Toast.LENGTH_LONG).show());\
-                          } catch (Exception e) {}\
-                      }\
-                  }, "AndroidApp");\
-              }' "$MAIN_FILE"
+          cat << 'EOF' > android/app/src/main/java/com/controlvisitas/app/MainActivity.java
+          package com.controlvisitas.app;
+
+          import android.os.Environment;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
+          import android.widget.Toast;
+          import com.getcapacitor.BridgeActivity;
+          import java.io.File;
+          import java.io.FileWriter;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onStart() {
+                  super.onStart();
+                  WebView webView = this.bridge.getWebView();
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void guardarJSON(String filename, String content) {
+                          try {
+                              File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                              File file = new File(path, filename);
+                              FileWriter writer = new FileWriter(file);
+                              writer.append(content);
+                              writer.flush();
+                              writer.close();
+                              runOnUiThread(() -> Toast.makeText(getContext(), "Guardado en Descargas", Toast.LENGTH_LONG).show());
+                          } catch (Exception e) {}
+                      }
+                  }, "AndroidApp");
+              }
+          }
+          EOF
 
       - name: Compilar APK con Gradle
         run: |
