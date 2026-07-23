@@ -35,8 +35,8 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Compilar APK Final (Gradle)
-        run: |
+      - name: Compilar APK Final
+  run: ./gradlew assembleDebug --no-daemon
           cd android
           ./gradlew assembleDebug
 
