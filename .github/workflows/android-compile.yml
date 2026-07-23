@@ -24,40 +24,33 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Instalar dependencias (si existe package.json)
+      - name: Generar proyecto Android automáticamente con Capacitor
         run: |
-          if [ -f package.json ]; then
-            npm install
-          fi
-
-      - name: Sincronizar Capacitor
-        run: |
-          if [ -f package.json ]; then
-            npx cap sync android || true
-          fi
+          # 1. Crear carpeta web y mover archivos
+          mkdir -p www
+          cp index.html www/
+          if [ -f icon.png ]; then cp icon.png www/; fi
+          if [ -f icon.PNG ]; then cp icon.PNG www/; fi
+          
+          # 2. Inicializar Node y Capacitor
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          
+          # 3. Crear plataforma Android
+          npx cap init "ControlVisitas" "com.miempresa.controlvisitas" --web-dir www
+          npx cap add android
+          npx cap copy android
 
       - name: Dar permisos de ejecución a Gradle
-        run: |
-          if [ -f gradlew ]; then
-            chmod +x gradlew
-          fi
-          if [ -f android/gradlew ]; then
-            chmod +x android/gradlew
-          fi
+        run: chmod +x android/gradlew
 
-      - name: Compilar APK Final (Gradle)
+      - name: Compilar APK Final
         run: |
-          if [ -f gradlew ]; then
-            ./gradlew assembleDebug --no-daemon
-          elif [ -f android/gradlew ]; then
-            cd android && ./gradlew assembleDebug --no-daemon
-          else
-            echo "No se encontró el ejecutable gradlew"
-            exit 1
-          fi
+          cd android
+          ./gradlew assembleDebug --no-daemon
 
       - name: Subir APK como Artefacto Descargable
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: android/app/build/outputs/apk/debug/*.apk
