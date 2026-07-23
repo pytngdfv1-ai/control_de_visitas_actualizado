@@ -1,195 +1,606 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Visitas y Clientes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Visitas OCR</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tesseract.js para OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                        },
+                        emerald: {
+                            500: '#10b981',
+                            600: '#059669',
+                            900: '#064e3b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --accent-color: #3498db;
-            --bg-color: #f4f6f9;
-            --card-bg: #ffffff;
-            --text-color: #2c3e50;
-            --border-color: #e2e8f0;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            line-height: 1.5;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-
-        h1 {
-            color: var(--primary-color);
-            font-size: 1.8rem;
-            text-align: center;
-            margin-bottom: 25px;
-            font-weight: 600;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group.full-width {
-            grid-column: span 2;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: var(--primary-color);
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            box-sizing: border-box;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 1rem;
-            background-color: #fafbfc;
-            transition: border-color 0.2s, background-color 0.2s;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            background-color: #fff;
-        }
-
-        button {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 1rem;
-            border-radius: 6px;
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.6;
             cursor: pointer;
-            width: 100%;
-            font-weight: 600;
-            transition: opacity 0.2s;
         }
 
-        button:hover {
-            opacity: 0.92;
-        }
-
-        .btn-secondary {
-            background-color: #718096;
-        }
-
-        .actions-bar {
-            display: flex;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .table-container {
-            margin-top: 30px;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th, td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            text-align: left;
-            font-size: 0.95rem;
-        }
-
-        th {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background-color: #f8fafc;
-        }
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-200 font-sans antialiased overflow-x-hidden selection:bg-emerald-500 selection:text-white custom-scrollbar">
 
-    <div class="container">
-        <h1>Gestor de Visitas y Clientes</h1>
-
-        <div class="form-grid">
-            <div class="form-group full-width">
-                <label for="clientName">Nombre del Cliente:</label>
-                <input type="text" id="clientName" placeholder="Ingrese el nombre completo...">
+    <main class="max-w-md mx-auto min-h-screen bg-slate-900 shadow-2xl relative flex flex-col pb-20">
+        
+        <!-- HEADER STICKY -->
+        <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-route text-emerald-500"></i>
+                    VisitasApp OCR
+                </h1>
             </div>
+            <!-- MENU DE HERRAMIENTAS DESPLEGABLE CON EFECTO LUMINOSO -->
+            <div class="relative" id="toolsMenuWrapper">
+                <button onclick="toggleToolsMenu()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl transition-colors shadow-sm flex items-center justify-center w-10 h-10 ring-2 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse" title="Herramientas y Acciones">
+                    <i class="fa-solid fa-gear text-lg text-emerald-400"></i>
+                </button>
+                <input type="file" id="backupInput" accept=".json" class="hidden" onchange="handleImportBackupPreview(event)">
+                
+                <!-- Dropdown -->
+                <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-64 bg-slate-850 rounded-xl shadow-2xl py-2 z-50 border border-slate-700 origin-top-right fade-in">
+                    
+                    <button onclick="openManualMergeModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-people-arrows text-lg"></i></div>
+                        <span class="font-medium">Combinar Cliente (Manual)</span>
+                    </button>
 
-            <div class="form-group full-width">
-                <label for="clientNotes">Notas de la Visita:</label>
-                <textarea id="clientNotes" rows="3" placeholder="Detalles, acuerdos o temas tratados..."></textarea>
+                    <button onclick="openSimilarityMergeModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-amber-400 hover:bg-slate-800 hover:text-amber-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-clone text-lg"></i></div>
+                        <span class="font-medium">Fusionar Clientes Similares</span>
+                    </button>
+
+                    <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
+
+                    <button onclick="document.getElementById('backupInput').click(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-blue-400 hover:bg-slate-800 hover:text-blue-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-cloud-arrow-down text-lg"></i></div>
+                        <span class="font-medium">Importar Backup JSON</span>
+                    </button>
+                    
+                    <button onclick="exportBackup(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-purple-400 hover:bg-slate-800 hover:text-purple-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-download text-lg"></i></div>
+                        <span class="font-medium">Exportar Backup JSON (Local)</span>
+                    </button>
+                    
+                    <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
+
+                    <button onclick="exportClientsTxt(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-slate-800 hover:text-emerald-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-file-arrow-down text-lg"></i></div>
+                        <span class="font-medium">Exportar Lista Clientes (TXT)</span>
+                    </button>
+                    
+                    <button onclick="openModal('importModal'); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-file-import text-lg"></i></div>
+                        <span class="font-medium">Importar Lista Inicial (TXT)</span>
+                    </button>
+                    
+                    <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
+                    
+                    <button onclick="resetData(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-rotate-right text-lg"></i></div>
+                        <span class="font-medium">Restablecer Todo</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 px-4 py-4 space-y-5">
+            
+            <section class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-search text-slate-500"></i>
+                </div>
+                <input type="text" id="searchInput" placeholder="Buscar por código, nombre o fecha (ej: 22-08-2025)..." 
+                    class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-2xl pl-10 pr-10 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm">
+                <button id="clearSearchBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white hidden transition-colors" onclick="clearSearch()">
+                    <i class="fa-solid fa-times-circle"></i>
+                </button>
+            </section>
+
+            <!-- SECCIÓN 2: MÓDULO OCR -->
+            <section class="bg-slate-850 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-camera text-emerald-500"></i>
+                        Escáner de Planilla
+                    </h2>
+                    <!-- Input de fecha global de control -->
+                    <input type="date" id="visitDate" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div id="dropZone" class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/50 transition-all relative group" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    <div id="dropZoneContent">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 group-hover:text-emerald-500 mb-2 transition-colors"></i>
+                        <p class="text-sm text-slate-400">Toca o arrastra captura aquí</p>
+                    </div>
+                    
+                    <!-- Progress UI -->
+                    <div id="ocrProgress" class="hidden absolute inset-0 bg-slate-850/95 backdrop-blur rounded-xl flex flex-col items-center justify-center p-4">
+                        <i class="fa-solid fa-circle-notch loader-spin text-emerald-500 text-2xl mb-2"></i>
+                        <p id="ocrStatusText" class="text-xs text-slate-300 mb-2 font-medium">Iniciando motor OCR...</p>
+                        <div class="w-full bg-slate-700 rounded-full h-1.5">
+                            <div id="ocrProgressBar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notificación OCR y Resumen de Escaneo -->
+                <div id="ocrResult" class="hidden mt-3 p-3 rounded-lg text-sm bg-emerald-900/30 border border-emerald-800/50 text-emerald-300 flex flex-col gap-2 fade-in">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start gap-2">
+                            <i class="fa-solid fa-circle-check mt-0.5"></i>
+                            <span id="ocrResultMessage">Procesamiento completado.</span>
+                        </div>
+                        <button onclick="openOcrReviewModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1 rounded font-medium transition-colors shadow">
+                            <i class="fa-solid fa-list-check mr-1"></i> Revisar y Editar
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 3: LISTA DE CLIENTES -->
+            <section>
+                <div class="flex justify-between items-end mb-3 px-1">
+                    <h2 class="text-sm font-semibold text-slate-300">Directorio de Clientes</h2>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openClientModal(-1)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Nuevo
+                        </button>
+                        <div class="text-xs font-medium text-slate-400 bg-slate-800 px-2.5 py-1.5 rounded-lg">
+                            Visitas hoy: <span id="visitedCount" class="text-emerald-400">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="clientGrid" class="flex flex-col gap-3">
+                    <!-- Las tarjetas se generan vía JS -->
+                </div>
+                
+                <div id="emptyState" class="hidden text-center py-10 fade-in">
+                    <i class="fa-solid fa-box-open text-4xl text-slate-700 mb-3"></i>
+                    <p class="text-slate-500 text-sm">No se encontraron clientes.</p>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- MODAL: CREAR / EDITAR CLIENTE -->
+    <div id="clientModal" class="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden fade-in">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <h3 class="font-bold text-white text-base" id="clientModalTitle">Nuevo / Editar Cliente</h3>
+                <button onclick="closeModal('clientModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <input type="hidden" id="editClientIndex" value="-1">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Código del Cliente (Opcional)</label>
+                    <input type="text" id="modalClientId" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="Ej: 1190 o S/N">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del Comercio / Cliente</label>
+                    <input type="text" id="modalClientName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: KIOSCO NATI">
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-900/50">
+                <button onclick="closeModal('clientModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+                <button onclick="saveClientFromModal()" class="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-900/50">Guardar Cambios</button>
             </div>
         </div>
+    </div>
 
-        <button onclick="addClient()">Guardar Registro</button>
-
-        <div class="actions-bar">
-            <button class="btn-secondary" onclick="exportBackup()">Exportar Respaldo JSON</button>
-            <button class="btn-secondary" onclick="exportClientsTxt()">Exportar Lista TXT</button>
+    <!-- MODAL: IMPORTAR LISTA TXT -->
+    <div id="importModal" class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden fade-in">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-white">Importar Lista Inicial</h3>
+                <button onclick="closeModal('importModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4">
+                <p class="text-xs text-slate-400 mb-2">Pega la lista en formato: <code>Código, Nombre</code> (uno por línea).</p>
+                <textarea id="importData" rows="8" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none font-mono custom-scrollbar" placeholder="1190, NATI&#10;1220, LOS MELLIS"></textarea>
+            </div>
+            <div class="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-900/50">
+                <button onclick="closeModal('importModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+                <button onclick="processImport()" class="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-900/50">Guardar</button>
+            </div>
         </div>
+    </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha (DD-MM-YYYY)</th>
-                        <th>Cliente</th>
-                        <th>Notas</th>
-                    </tr>
-                </thead>
-                <tbody id="clientTableBody">
-                    <!-- Los registros se cargan dinámicamente aquí -->
-                </tbody>
-            </table>
+    <!-- MODAL: HISTORIAL DEL CLIENTE -->
+    <div id="historyModal" class="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden fade-in flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="pr-2 truncate">
+                    <h3 class="font-bold text-white text-lg truncate" id="historyClientName">Nombre del Cliente</h3>
+                    <p class="text-xs text-emerald-400 font-medium">Código: #<span id="historyClientId"></span></p>
+                </div>
+                <button onclick="closeModal('historyModal')" class="text-slate-400 hover:text-white flex-shrink-0 bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar">
+                <div id="historyEmptyState" class="text-center py-6 hidden">
+                    <i class="fa-regular fa-calendar-xmark text-3xl text-slate-600 mb-2"></i>
+                    <p class="text-slate-400 text-sm">Sin visitas registradas.</p>
+                </div>
+                <ul id="historyDatesList" class="space-y-2">
+                    <!-- Dates injected via JS -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REVISIÓN Y EDICIÓN PRE-MARCADO OCR O BACKUP -->
+    <div id="ocrReviewModal" class="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/90">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2" id="reviewModalTitle">
+                        <i class="fa-solid fa-list-check text-emerald-500"></i>
+                        Revisión de Detecciones
+                    </h3>
+                    <p class="text-xs text-slate-400" id="reviewModalSubtitle">Modifica o confirma elementos antes de aplicar</p>
+                </div>
+                <button onclick="closeModal('ocrReviewModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-3" id="ocrReviewListContainer">
+                <!-- Ítems editables -->
+            </div>
+
+            <div class="p-4 border-t border-slate-700 flex items-center justify-between bg-slate-900/80">
+                <button onclick="closeModal('ocrReviewModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+                <button id="reviewModalConfirmBtn" onclick="confirmAndApplyOcrResults()" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-900/50 flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i> Confirmar y Aplicar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: FUSIONAR CLIENTES SIMILARES (HERRAMIENTAS) -->
+    <div id="similarityMergeModal" class="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/90">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-clone text-amber-500"></i>
+                        Detección de Clientes Similares
+                    </h3>
+                    <p class="text-xs text-slate-400">Fusiona registros duplicados o variantes en tu base de datos</p>
+                </div>
+                <button onclick="closeModal('similarityMergeModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-3" id="similarityMergeListContainer">
+                <!-- Pares similares detectados -->
+            </div>
+
+            <div class="p-4 border-t border-slate-700 flex justify-end bg-slate-900/80">
+                <button onclick="closeModal('similarityMergeModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: COMBINAR CLIENTE MANUAL -->
+    <div id="manualMergeModal" class="fixed inset-0 z-[85] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/90">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-people-arrows text-cyan-400"></i>
+                        Combinar Dos Clientes Manualmente
+                    </h3>
+                    <p class="text-xs text-slate-400">Busca y selecciona el cliente origen y el cliente destino</p>
+                </div>
+                <button onclick="closeModal('manualMergeModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-4">
+                <!-- Selector Origen con Búsqueda -->
+                <div class="relative">
+                    <label class="block text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> 1. Cliente Origen (El que será absorbido y eliminado)
+                    </label>
+                    <input type="hidden" id="manualSourceIndex" value="">
+                    <input type="text" id="manualSourceSearch" placeholder="Escribe para buscar código o nombre..." 
+                        oninput="filterMergeDropdown('source')" 
+                        onfocus="showMergeDropdown('source')"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    <div id="manualSourceDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar">
+                        <!-- Opciones generadas por JS -->
+                    </div>
+                </div>
+
+                <!-- Selector Destino con Búsqueda -->
+                <div class="relative">
+                    <label class="block text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved"></i> 2. Cliente Destino (El que permanecerá y recibirá las fechas)
+                    </label>
+                    <input type="hidden" id="manualTargetIndex" value="">
+                    <input type="text" id="manualTargetSearch" placeholder="Escribe para buscar código o nombre..." 
+                        oninput="filterMergeDropdown('target')" 
+                        onfocus="showMergeDropdown('target')"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-sans">
+                    <div id="manualTargetDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar">
+                        <!-- Opciones generadas por JS -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                    <p class="text-slate-300 font-medium"><i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> ¿Qué sucederá?</p>
+                    <p>• Se unificarán las fechas de visita de ambos clientes sin duplicados.</p>
+                    <p>• El cliente origen desaparecerá del listado.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-900/80">
+                <button onclick="closeModal('manualMergeModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+                <button onclick="executeManualMerge()" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition-colors shadow-lg shadow-cyan-900/50 flex items-center gap-2">
+                    <i class="fa-solid fa-code-merge"></i> Combinar Ahora
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        let clients = [];
+        const RAW_DATA = `
+1190,NATI
+1220,LOS MELLIS
+1374,EL GORDO Y EL FLACO
+1444,KIOSCO GLADIS
+1469,KIOSCO LOS ABUELOS
+1564,KIOSCO ESPERANZA
+1950,KIOSCO SANDRA
+2076,KIOSCO JULIA
+2293,KIOSCO ES MIO
+2295,KIOSCO MAJO
+2335,KIOSCO ESCUELA
+2344,KIOSCO EL CHIRINGUITO
+2437,ALM. LO DE CASTRO
+2615,LA BUENA ONDA
+2631,KIOSCO FLAVIA
+1055,JULIO
+1128,ORIBE (M Y J RIBA S.R.L)
+1175,DANNSER S.A
+1179,5 ESQUINAS
+1218,SONIDAL
+1258,TOPOLIONO
+1284,DE LA CRUZ
+1334,ROJO
+1425,LO DE MARCE
+1511,JHONNY
+1880,ARTURO FIORELA
+2024,LA ECONOMIA
+2029,LA ESMERALDA
+2106,AUT. SISTER
+2119,PROV. COSTA
+2223,PROV. PATY
+2287,(EX EL PASO) AUT. LA GRANJA
+2379,ILMERCATO
+2400,AUT. BILU
+2415,AUT. SMILE
+2479,AUT. EL GENIO
+2486,EL TALI EL TALI
+2693,MULTI MARKET
+2759,AUT. LUCEL
+2816,AUT. EL REDONDEL
+2948,CHATINO SAS
+3171,SUPER SATILAJO SAS
+3268,M Y N
+3461,IL MERCATO
+2394,SUPER. ALE Y NICO
+2430,CARNICERIA KM.23
+1747,PANADERIA ADRISOL
+1878,PANAD. ARCOIRIS
+1899,PANADERIA 102
+2005,PANAD. TINA
+2071,PANAD.LA PAMPITA
+2112,PANAD. AUSTRAL
+2174,PANADERIA EL BUEN SABOR
+2380,PANAD. MIGAS DE PAN
+2590,PANAD. LAS ABUELAS
+2907,PANAD. SUPER ESPECIAL
+3337,PANADERIA EL PINO
+1000,LEITES
+1041,ALM. EMANUEL
+1043,EL OFERTON
+1048,PROV. MERCEDES
+1184,VICAROL
+1185,ALM. DEL BARRIO
+1188,EL UVERO
+1219,ALMACEN INES
+1221,PUERTA DEL SOL
+1280,LAS TRES
+1282,BRANDON
+1312,ALM. LA LATA
+1355,ARACHANA
+1366,NUEVA ERA
+1394,LAURA CHICO
+1468,LA MANCHA
+1493,ex ALM. EL VIEJO
+1509,MARIA RIVERO
+1527,NOELIA
+1568,CABALLERO
+1572,ALM. VIRCRIS
+1609,LOS 3 DUENDES
+1624,SAN JUAN 80
+1633,SORALLA
+1641,PROVISION 3 SAUCES
+1645,LEMA
+1684,ALM. BUENA ONDA
+1721,ALM. LOS PINOS
+1752,ALM. PAOLA
+1753,ALMACEN SUSANA
+1758,WALDEMAR ANTUNEZ
+1761,ALMACEN IMALA
+1776,NUEVO MILENIO
+1777,ALM. LA PREVIA
+1798,ALM. 26
+1803,NUEVA VIDA
+1831,ALM. EL VIEJO
+1844,PROV. CARLITOS
+1848,ALM. LOS ALAMOS
+1862,ALM. DA ROSA
+1884,ALM. EL CUARENTA
+1886,CAMARGO
+1897,ALM. LO DE EVA
+1900,LOS HERMANOS
+1913,ALM. LA FAMILIA
+1922,STELLA RISSO
+1925,ALM. RMB
+1930,ALM. Y POLLERIA LO DE BEA
+1948,LA ESQUINA
+1951,ALM. LALO
+1952,ALM. MARISOL
+1986,ALM. FANTASIA
+1997,CARLITOS
+1999,ALM. LUJAN
+2000,ALM. BRUNO
+2027,BLANCA ROJAS
+2033,LO DEL NEGRO
+2037,ALM. GABRIELA
+2046,ALM. VANELU
+2047,ALM. REY DE REYES
+2057,ALM. LILIAN
+2065,ALM. ROSARIO ARAUJO
+2084,ALM. LA CAÑADA
+2085,ALM. VIRUS
+2086,ALM. LO DE ANDREA
+2098,ALM. CHOCOLONDO
+2117,ALM. PARAISO
+2118,ALM. MARIANA
+2121,ALM. LOS 5
+2126,ALM. ROSA
+2146,D'OLIVEIRA BRENER GUILLERMO ESTEBAN
+2163,ALM. LO DE GONZALO
+2167,ALM. LO DE JUAN
+2171,ALMACEN BIBI
+2190,ALM. Y SALON LA FAMILIA
+2191,ALM. BOUTIQUE SAS
+2196,MAFALDA
+2202,LOS PARAISOS
+2219,ALM. KAJU
+2222,ALM. FAGUNDEZ
+2234,LA BRUJA DE ORO
+2239,ALM. ROSANO
+2264,ALM. EL PIPI
+2265,MERCADO TIKI TOKI
+2269,ALM. CHIRINGUITO
+2270,TU ALMACEN
+2300,ALM. LAURA
+2301,ALM. DELICIAS
+2311,LO DE NANO
+2315,ALM. LA ESPERANZA
+2323,LA REVANCHA
+2334,LORENA
+2346,ALM. MIGUELITO
+2352,ALM. ROVILUMA
+2353,LA PLACITA
+2355,ALM. LO DE PAME
+2361,ALM. LOS ABUELOS
+2377,ALM. LA ZONA
+2462,ALM. YSA
+2475,ALM. DOMI
+2478,ALM. EL TREBOL
+2497,ALM. EL SUERTUDO
+2506,ALM. AVILA
+2510,ALM. DONDE
+2616,ALM. JOA
+2629,ALM. LA LUZ
+2633,EL RANCHO
+2651,CAMILO VASQUEZ
+2695,ALICIA
+2717,GISELLE
+2731,ALM. ALICIA E HIJOS
+2748,SANDRA RODRIGUEZ
+2753,ALM. EL OBRERO
+2975,LA YUNTA
+3064,ALM. MI CIELO
+3080,ALM. LOS ALMENDROS
+3187,PEKELANDIA'S
+3205,MI PROVISION
+3313,ALTIBRAMA
+3401,G Y S
+3462,ALM. SAYA
+3466,ALM. BARATO
+1126,EL ESCORIAL
+1187,ROMERO Y ROMERO
+1945,MANUELA OLASO
+1967,EL CAMION AZUL DE JIREH
+2032,LA RUBIA
+2250,EL POTRERO FUTBOL 5
+2261,POLLERIA LA VIEJA
+2422,CONGELADOS YOLI
+2495,LA FRUTERIA
+2498,ALFA Y OMEGA
+2513,LO DE PATTY
+2560,POLLERIA LO DE JULIO
+2568,PAPELERIA LOS PINTADOS
+2813,PASTAS LA UNICA
+3175,GRANJA PEQUES
+3203,ALM. SAYA
+3325,CLIENTE EVENTUAL
+3445,ANDREA SILVANA
+3465,24 HRS 5 ESQUINAS EL EMPALME 3`;
 
-        // Función estricta para generar formato DD-MM-YYYY
-        function getSerializationDate() {
-            const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
-            return `${day}-${month}-${year}`;
+        let clients = [];
+        let searchQuery = '';
+        let pendingOcrSessionResults = []; 
+        let pendingBackupData = []; 
+        
+        function toggleToolsMenu() {
+            const menu = document.getElementById('toolsMenu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        function closeToolsMenu() {
+            const menu = document.getElementById('toolsMenu');
+            if (menu) {
+                menu.classList.add('hidden');
+            }
         }
 
         // --- SISTEMA DE DESCARGA ADAPTATIVO (WEBVIEW NATIVO O NAVEGADOR) ---
         function triggerLocalDownload(content, fileName, mimeType) {
-            // Si estamos dentro de la app Android con el puente nativo instalado
             if (window.AndroidApp && typeof window.AndroidApp.guardarJSON === 'function') {
                 try {
                     window.AndroidApp.guardarJSON(fileName, content);
@@ -199,7 +610,6 @@
                 }
             }
 
-            // Fallback para navegador web normal (PC / Móvil web)
             const base64 = btoa(unescape(encodeURIComponent(content)));
             const dataUri = `data:${mimeType};base64,${base64}`;
 
@@ -211,70 +621,726 @@
             document.body.removeChild(downloadAnchor);
         }
 
-        function addClient() {
-            const nameInput = document.getElementById('clientName');
-            const notesInput = document.getElementById('clientNotes');
-
-            if (!nameInput.value.trim()) {
-                alert("Por favor, ingrese el nombre del cliente.");
-                return;
-            }
-
-            const newRecord = {
-                id: Date.now(),
-                date: getSerializationDate(),
-                name: nameInput.value.trim(),
-                notes: notesInput.value.trim()
-                // Nota: Omitido intencionalmente cualquier cálculo de totales según directrices
-            };
-
-            clients.push(newRecord);
-            renderTable();
-
-            nameInput.value = '';
-            notesInput.value = '';
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('clientTableBody');
-            tbody.innerHTML = '';
-
-            clients.forEach(c => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${c.date}</td>
-                    <td>${escapeHtml(c.name)}</td>
-                    <td>${escapeHtml(c.notes)}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-        }
-
         function exportBackup() {
             const dataStr = JSON.stringify(clients, null, 2);
             const fileName = `visitas_backup_${getSerializationDate()}.json`;
             triggerLocalDownload(dataStr, fileName, 'application/json');
+            alert("El archivo se está guardando localmente.");
         }
 
         function exportClientsTxt() {
             let textContent = "";
             clients.forEach(c => {
-                textContent += `${c.date},${c.name},${c.notes}\n`;
+                textContent += `${c.id || ''},${c.name}\n`;
             });
             const fileName = `lista_clientes_${getSerializationDate()}.txt`;
             triggerLocalDownload(textContent, fileName, 'text/plain');
+            alert("El archivo se está guardando localmente.");
         }
+
+        function resetData() {
+            if (confirm("¿Estás seguro de restablecer todos los datos a la lista original? Se perderán las visitas y cambios guardados.")) {
+                localStorage.removeItem('visitas_app_clients_v3');
+                clients = parseRawData();
+                renderClients();
+                alert("Datos restablecidos exitosamente.");
+            }
+        }
+
+        function handleImportBackupPreview(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                        pendingBackupData = parseLegacyBackupFormat(parsed);
+                    } else if (Array.isArray(parsed)) {
+                        pendingBackupData = parsed;
+                    } else {
+                        alert("El archivo JSON no tiene un formato válido de respaldo.");
+                        return;
+                    }
+                    openBackupReviewModal();
+                } catch(err) {
+                    console.error(err);
+                    alert("Error al leer o procesar el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function parseLegacyBackupFormat(rawObj) {
+            let clientVisitsMap = {};
+            let baseClients = [...clients];
+            let clientMapByName = {};
+            baseClients.forEach(c => {
+                const key = c.name.toUpperCase().trim();
+                clientMapByName[key] = c;
+                if (!c.visitDates) c.visitDates = [];
+            });
+
+            for (const key in rawObj) {
+                if (key.startsWith('daily-data-')) {
+                    const dateStr = key.replace('daily-data-', '');
+                    try {
+                        let innerJson = rawObj[key];
+                        if (typeof innerJson === 'string') {
+                            innerJson = JSON.parse(innerJson);
+                        }
+                        if (innerJson && Array.isArray(innerJson.rows)) {
+                            innerJson.rows.forEach(row => {
+                                if (row && row.account) {
+                                    const accName = row.account.toUpperCase().trim();
+                                    if (accName) {
+                                        if (!clientMapByName[accName]) {
+                                            const newClient = {
+                                                id: '',
+                                                name: row.account.trim(),
+                                                visitDates: []
+                                            };
+                                            baseClients.push(newClient);
+                                            clientMapByName[accName] = newClient;
+                                        }
+                                        if (!clientMapByName[accName].visitDates.includes(dateStr)) {
+                                            clientMapByName[accName].visitDates.push(dateStr);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        console.error("Error parsing inner json for key", key, e);
+                    }
+                }
+            }
+
+            baseClients.forEach(c => {
+                if (c.visitDates) {
+                    c.visitDates.sort((a, b) => b.localeCompare(a));
+                }
+            });
+
+            return baseClients;
+        }
+
+        function openBackupReviewModal() {
+            const modal = document.getElementById('ocrReviewModal');
+            document.getElementById('reviewModalTitle').innerHTML = `<i class="fa-solid fa-cloud-arrow-down text-blue-400"></i> Importar Backup JSON`;
+            document.getElementById('reviewModalSubtitle').textContent = `Se encontraron ${pendingBackupData.length} registros en el backup.`;
+            
+            const container = document.getElementById('ocrReviewListContainer');
+            container.innerHTML = '';
+
+            pendingBackupData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs";
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 truncate pr-2">
+                        <span class="font-mono text-emerald-400">#${item.id || 'S/N'}</span>
+                        <span class="text-white font-medium truncate">${escapeHTML(item.name || '')}</span>
+                    </div>
+                    <span class="text-slate-400 flex-shrink-0">${item.visitDates ? item.visitDates.length : 0} visitas</span>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('reviewModalConfirmBtn').onclick = confirmAndApplyBackup;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function confirmAndApplyBackup() {
+            if (pendingBackupData && pendingBackupData.length > 0) {
+                clients = pendingBackupData;
+                saveToStorage();
+                renderClients();
+                closeModal('ocrReviewModal');
+                alert("¡Backup importado con éxito!");
+            }
+        }
+
+        const escapeHTML = (str) => {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+                }[tag] || tag)
+            );
+        };
+
+        const getUiDate = () => {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        };
+
+        const getSerializationDate = () => {
+            const today = new Date();
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const yyyy = today.getFullYear();
+            return `${dd}-${mm}-${yyyy}`;
+        };
+
+        function convertToSerializationFormat(dateString) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                const parts = dateString.split('-');
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function init() {
+            document.getElementById('visitDate').value = getUiDate();
+            loadFromStorage();
+            setupEventListeners();
+            renderClients();
+
+            setInterval(() => {
+                saveToStorage();
+            }, 30000);
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem('visitas_app_clients_v3');
+            if (saved) {
+                try {
+                    clients = JSON.parse(saved);
+                } catch(e) {
+                    clients = parseRawData();
+                }
+            } else {
+                clients = parseRawData();
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('visitas_app_clients_v3', JSON.stringify(clients));
+        }
+
+        function parseRawData() {
+            const lines = RAW_DATA.trim().split('\n');
+            let parsed = [];
+            lines.forEach(line => {
+                const parts = line.split(',');
+                if (parts.length >= 2) {
+                    const id = parts[0].trim();
+                    const name = parts.slice(1).join(',').trim();
+                    parsed.push({ id, name, visitDates: [] });
+                }
+            });
+            return parsed;
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase().trim();
+                if (searchQuery.length > 0) {
+                    clearSearchBtn.classList.remove('hidden');
+                } else {
+                    clearSearchBtn.classList.add('hidden');
+                }
+                renderClients();
+            });
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.value = '';
+            searchQuery = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderClients();
+        }
+
+        function renderClients() {
+            const grid = document.getElementById('clientGrid');
+            const emptyState = document.getElementById('emptyState');
+            const visitedCountEl = document.getElementById('visitedCount');
+
+            grid.innerHTML = '';
+
+            const currentUiDate = document.getElementById('visitDate').value || getUiDate();
+            const currentDate = convertToSerializationFormat(currentUiDate);
+
+            let filtered = clients.filter(c => {
+                if (!searchQuery) return true;
+                const matchId = c.id && c.id.toLowerCase().includes(searchQuery);
+                const matchName = c.name && c.name.toLowerCase().includes(searchQuery);
+                
+                let matchDate = false;
+                if (c.visitDates && c.visitDates.length > 0) {
+                    matchDate = c.visitDates.some(dateStr => {
+                        if (dateStr.includes(searchQuery)) return true;
+                        return false;
+                    });
+                }
+
+                return matchId || matchName || matchDate;
+            });
+
+            const visitedTotal = clients.filter(c => c.visitDates && c.visitDates.includes(currentDate)).length;
+            visitedCountEl.textContent = visitedTotal;
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach((client) => {
+                const originalIndex = clients.findIndex(c => c === client);
+                const isVisitedToday = client.visitDates && client.visitDates.includes(currentDate);
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl border transition-all flex items-center justify-between shadow-sm cursor-pointer ${
+                    isVisitedToday 
+                        ? 'bg-emerald-950/20 border-emerald-800/60' 
+                        : 'bg-slate-850 border-slate-800 hover:border-slate-700'
+                }`;
+                
+                card.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    openHistoryModal(originalIndex);
+                };
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
+                        <button onclick="toggleVisit(${originalIndex})" class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                            isVisitedToday 
+                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40' 
+                                : 'bg-slate-800 text-slate-500 hover:text-slate-300'
+                        }">
+                            <i class="fa-solid fa-check text-xs ${isVisitedToday ? '' : 'opacity-0'}"></i>
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-semibold">
+                                    ${client.id ? '#' + escapeHTML(client.id) : 'S/N'}
+                                </span>
+                                ${isVisitedToday ? '<span class="text-[10px] text-emerald-400 font-medium">¡Visitado hoy!</span>' : ''}
+                            </div>
+                            <h3 class="text-sm font-semibold text-white truncate">${escapeHTML(client.name)}</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="openClientModal(${originalIndex})" class="p-2 text-slate-400 hover:text-white transition-colors" title="Editar Cliente">
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="openHistoryModal(${originalIndex})" class="p-2 text-slate-400 hover:text-emerald-400 transition-colors relative" title="Ver Historial">
+                            <i class="fa-regular fa-calendar-days text-sm"></i>
+                            ${client.visitDates && client.visitDates.length > 0 ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>` : ''}
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleVisit(index) {
+            const rawDate = document.getElementById('visitDate').value || getUiDate();
+            const currentDate = convertToSerializationFormat(rawDate);
+            
+            if (!clients[index].visitDates) {
+                clients[index].visitDates = [];
+            }
+
+            const pos = clients[index].visitDates.indexOf(currentDate);
+            if (pos > -1) {
+                clients[index].visitDates.splice(pos, 1);
+            } else {
+                clients[index].visitDates.push(currentDate);
+                clients[index].visitDates.sort((a, b) => b.localeCompare(a));
+            }
+
+            saveToStorage();
+            renderClients();
+        }
+
+        function openClientModal(index) {
+            const modal = document.getElementById('clientModal');
+            const titleEl = document.getElementById('clientModalTitle');
+            const idInput = document.getElementById('modalClientId');
+            const nameInput = document.getElementById('modalClientName');
+            const indexInput = document.getElementById('editClientIndex');
+
+            indexInput.value = index;
+            if (index >= 0) {
+                titleEl.textContent = "Editar Cliente";
+                idInput.value = clients[index].id || "";
+                nameInput.value = clients[index].name || "";
+            } else {
+                titleEl.textContent = "Nuevo Cliente";
+                idInput.value = "";
+                nameInput.value = "";
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function saveClientFromModal() {
+            const index = parseInt(document.getElementById('editClientIndex').value);
+            const idInput = document.getElementById('modalClientId').value.trim();
+            const nameInput = document.getElementById('modalClientName').value.trim();
+
+            if (!nameInput) {
+                alert("Por favor ingresa un nombre para el cliente.");
+                return;
+            }
+
+            if (index >= 0) {
+                clients[index].id = idInput;
+                clients[index].name = nameInput;
+            } else {
+                clients.unshift({
+                    id: idInput,
+                    name: nameInput,
+                    visitDates: []
+                });
+            }
+
+            saveToStorage();
+            renderClients();
+            closeModal('clientModal');
+        }
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function openHistoryModal(index) {
+            const client = clients[index];
+            document.getElementById('historyClientName').textContent = client.name;
+            document.getElementById('historyClientId').textContent = client.id || "S/N";
+
+            const listEl = document.getElementById('historyDatesList');
+            const emptyEl = document.getElementById('historyEmptyState');
+            listEl.innerHTML = '';
+
+            if (!client.visitDates || client.visitDates.length === 0) {
+                emptyEl.classList.remove('hidden');
+            } else {
+                emptyEl.classList.add('hidden');
+                client.visitDates.forEach(dateStr => {
+                    const li = document.createElement('li');
+                    li.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-sm";
+                    li.innerHTML = `
+                        <span class="text-white font-medium flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-check text-emerald-400"></i> ${dateStr}
+                        </span>
+                        <span class="text-xs text-emerald-500 bg-emerald-950/40 px-2 py-0.5 rounded">Completado</span>
+                    `;
+                    listEl.appendChild(li);
+                });
+            }
+
+            const modal = document.getElementById('historyModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const dropZoneContent = document.getElementById('dropZoneContent');
+            const progressEl = document.getElementById('ocrProgress');
+            const statusText = document.getElementById('ocrStatusText');
+            const progressBar = document.getElementById('ocrProgressBar');
+            const resultBox = document.getElementById('ocrResult');
+
+            dropZoneContent.classList.add('opacity-30');
+            progressEl.classList.remove('hidden');
+            resultBox.classList.add('hidden');
+            progressBar.style.width = '10%';
+            statusText.textContent = "Cargando motor de reconocimiento OCR...";
+
+            try {
+                const worker = await Tesseract.createWorker('spa');
+                progressBar.style.width = '40%';
+                statusText.textContent = "Escaneando imagen y leyendo texto...";
+
+                const ret = await worker.recognize(file);
+                progressBar.style.width = '90%';
+                statusText.textContent = "Procesando nombres de clientes...";
+
+                await worker.terminate();
+
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    progressEl.classList.add('hidden');
+                    dropZoneContent.classList.remove('opacity-30');
+                    progressBar.style.width = '0%';
+                }, 400);
+
+                processOcrText(ret.data.text);
+
+            } catch (err) {
+                console.error(err);
+                progressEl.classList.add('hidden');
+                dropZoneContent.classList.remove('opacity-30');
+                progressBar.style.width = '0%';
+                alert("Ocurrió un error al procesar la imagen con OCR.");
+            } finally {
+                event.target.value = '';
+            }
+        }
+
+        function processOcrText(extractedText) {
+            const lines = extractedText.split('\n');
+            pendingOcrSessionResults = [];
+
+            const normalizeStr = (str) => {
+                return str.toUpperCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^A-Z0-9\s]/g, "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+            };
+
+            const getLevenshteinDistance = (a, b) => {
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+                for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                            matrix[i][j] = matrix[i - 1][j - 1];
+                        } else {
+                            matrix[i][j] = Math.min(
+                                matrix[i - 1][j - 1] + 1,
+                                Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                            );
+                        }
+                    }
+                }
+                return matrix[b.length][a.length];
+            };
+
+            const calculateSimilarity = (str1, str2) => {
+                const clean1 = normalizeStr(str1);
+                const clean2 = normalizeStr(str2);
+                if (!clean1 || !clean2) return 0;
+                
+                if (clean1.includes(clean2) || clean2.includes(clean1)) {
+                    return 0.85;
+                }
+
+                const longer = clean1.length > clean2.length ? clean1 : clean2;
+                const shorter = clean1.length > clean2.length ? clean2 : clean1;
+                const editDistance = getLevenshteinDistance(longer, shorter);
+                return (longer.length - editDistance) / longer.length;
+            };
+
+            lines.forEach(rawLine => {
+                const cleanLine = normalizeStr(rawLine);
+                if (cleanLine.length < 3) return;
+
+                const isNumericOrPrice = /^[\d\s.,\$\-\/]+$/.test(cleanLine) || 
+                                         /^\d+([.,]\d{1,2})?$/.test(cleanLine) || 
+                                         /^\$\s*\d+/.test(cleanLine) ||
+                                         /^[.,]\d+$/.test(cleanLine);
+                if (isNumericOrPrice) return;
+
+                let foundClient = clients.find(c => {
+                    const dbName = normalizeStr(c.name);
+                    const dbId = c.id ? c.id.trim() : "";
+                    return (dbId && cleanLine === dbId) || 
+                           dbName === cleanLine || 
+                           dbName.includes(cleanLine) || 
+                           cleanLine.includes(dbName);
+                });
+
+                if (foundClient) {
+                    if (!pendingOcrSessionResults.some(m => m.clientRef === foundClient)) {
+                        pendingOcrSessionResults.push({
+                            type: 'existing',
+                            clientRef: foundClient,
+                            displayName: foundClient.name,
+                            id: foundClient.id,
+                            matchType: 'exact',
+                            similarSuggestion: null,
+                            selected: true
+                        });
+                    }
+                } else {
+                    let bestMatch = null;
+                    let highestScore = 0;
+
+                    clients.forEach(c => {
+                        const score = calculateSimilarity(cleanLine, c.name);
+                        if (score > highestScore) {
+                            highestScore = score;
+                            bestMatch = c;
+                        }
+                    });
+
+                    const isCommonWord = ['TOTAL', 'FECHA', 'PAGINA', 'RUTA', 'CLIENTE', 'DIRECCION', 'OBS', 'VENDEDOR', 'LISTA', 'HOJA', 'SUBTOTAL', 'SALDO', 'CANTIDAD', 'IMPORTE'].some(w => cleanLine.includes(w));
+                    
+                    if (!isCommonWord && cleanLine.length >= 4) {
+                        const alreadyPending = pendingOcrSessionResults.some(m => normalizeStr(m.displayName) === cleanLine);
+
+                        if (!alreadyPending) {
+                            if (highestScore >= 0.50 && bestMatch) {
+                                pendingOcrSessionResults.push({
+                                    type: 'similar',
+                                    clientRef: bestMatch,
+                                    displayName: rawLine.trim(),
+                                    id: bestMatch.id,
+                                    matchType: 'fuzzy',
+                                    similarityScore: Math.round(highestScore * 100),
+                                    similarSuggestion: bestMatch.name,
+                                    selected: true
+                                });
+                            } else {
+                                pendingOcrSessionResults.push({
+                                    type: 'new',
+                                    clientRef: null,
+                                    displayName: rawLine.trim(),
+                                    id: '',
+                                    matchType: 'none',
+                                    similarSuggestion: null,
+                                    selected: false
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+
+            const resultBox = document.getElementById('ocrResult');
+            const resultMsg = document.getElementById('ocrResultMessage');
+            
+            resultBox.classList.remove('hidden');
+            
+            if (pendingOcrSessionResults.length > 0) {
+                resultBox.className = "mt-3 p-3 rounded-lg text-sm bg-emerald-900/30 border border-emerald-800/50 text-emerald-300 flex flex-col gap-2 fade-in";
+                resultMsg.innerHTML = `Escaneo completado. Se detectaron <strong>${pendingOcrSessionResults.length}</strong> elementos. Haz clic en "Revisar y Editar" para verificar coincidencias.`;
+            } else {
+                resultBox.className = "mt-3 p-3 rounded-lg text-sm bg-amber-900/30 border border-amber-800/50 text-amber-300 flex flex-col gap-2 fade-in";
+                resultMsg.innerHTML = "Escaneo completado. No se detectaron nombres nuevos ni clientes en esta imagen.";
+            }
+        }
+
+        function openOcrReviewModal() {
+            const modal = document.getElementById('ocrReviewModal');
+            document.getElementById('reviewModalTitle').innerHTML = `<i class="fa-solid fa-list-check text-emerald-500"></i> Revisión de Detecciones OCR`;
+            document.getElementById('reviewModalSubtitle').textContent = `Se detectaron ${pendingOcrSessionResults.length} elementos en la planilla.`;
+            
+            const container = document.getElementById('ocrReviewListContainer');
+            container.innerHTML = '';
+
+            if (pendingOcrSessionResults.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-6 text-sm">No hay detecciones pendientes para revisar.</p>`;
+            } else {
+                pendingOcrSessionResults.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 text-xs";
+                    
+                    let statusBadge = '';
+                    if (item.type === 'existing') {
+                        statusBadge = `<span class="bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded text-[10px]">Exacto</span>`;
+                    } else if (item.type === 'similar') {
+                        statusBadge = `<span class="bg-amber-950 text-amber-400 px-2 py-0.5 rounded text-[10px]">Similar (${item.similarityScore}%)</span>`;
+                    } else {
+                        statusBadge = `<span class="bg-blue-950 text-blue-400 px-2 py-0.5 rounded text-[10px]">Nuevo</span>`;
+                    }
+
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="ocrItemCheck_${index}" ${item.selected ? 'checked' : ''} onchange="toggleOcrItemSelection(${index}, this.checked)" class="w-4 h-4 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500 bg-slate-800 cursor-pointer">
+                                <span class="font-mono text-emerald-400 font-semibold">#${item.id || 'S/N'}</span>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Texto leído / Nombre:</label>
+                            <input type="text" id="ocrItemName_${index}" value="${escapeHTML(item.displayName)}" oninput="updateOcrItemName(${index}, this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-emerald-500">
+                        </div>
+                        ${item.similarSuggestion ? `<p class="text-[11px] text-amber-300/80"><i class="fa-solid fa-lightbulb mr-1"></i> Sugerencia DB: <strong>${escapeHTML(item.similarSuggestion)}</strong></p>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            document.getElementById('reviewModalConfirmBtn').onclick = confirmAndApplyOcrResults;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function toggleOcrItemSelection(index, isChecked) {
+            if (pendingOcrSessionResults[index]) {
+                pendingOcrSessionResults[index].selected = isChecked;
+            }
+        }
+
+        function updateOcrItemName(index, val) {
+            if (pendingOcrSessionResults[index]) {
+                pendingOcrSessionResults[index].displayName = val;
+            }
+        }
+
+        function confirmAndApplyOcrResults() {
+            const rawDate = document.getElementById('visitDate').value || getUiDate();
+            const currentDate = convertToSerializationFormat(rawDate);
+            let appliedCount = 0;
+
+            pendingOcrSessionResults.forEach(item => {
+                if (!item.selected) return;
+
+                let targetClient = item.clientRef;
+
+                if (!targetClient) {
+                    targetClient = clients.find(c => c.name.toUpperCase() === item.displayName.toUpperCase());
+                    
+                    if (!targetClient) {
+                        targetClient = {
+                            id: item.id || '',
+                            name: item.displayName.trim(),
+                            visitDates: []
+                        };
+                        clients.unshift(targetClient);
+                    }
+                }
+
+                if (targetClient) {
+                    if (!targetClient.visitDates) targetClient.visitDates = [];
+                    if (!targetClient.visitDates.includes(currentDate)) {
+                        targetClient.visitDates.push(currentDate);
+                        targetClient.visitDates.sort((a, b) => b.localeCompare(a));
+                        appliedCount++;
+                    }
+                }
+            });
+
+            saveToStorage();
+            renderClients();
+            closeModal('ocrReviewModal');
+            document.getElementById('ocrResult').classList.add('hidden');
+            alert(`¡Proceso finalizado! Se marcaron visitas a ${appliedCount} clientes.`);
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>
