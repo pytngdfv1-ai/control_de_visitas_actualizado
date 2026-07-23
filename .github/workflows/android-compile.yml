@@ -24,12 +24,14 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Preparar archivos web
+      - name: Preparar archivos web e iconos
         run: |
           mkdir -p www
           cp index.html www/
-          if [ -f icon.PNG ]; then cp icon.PNG www/; fi
           if [ -f icon.png ]; then cp icon.png www/; fi
+          if [ -f icon.PNG ]; then cp icon.PNG www/; fi
+          if [ -f icon.jpg ]; then cp icon.jpg www/; fi
+          if [ -f icon.JPG ]; then cp icon.JPG www/; fi
 
       - name: Generar App Android con Capacitor
         run: |
@@ -57,6 +59,7 @@ jobs:
               public void onStart() {
                   super.onStart();
                   WebView webView = this.bridge.getWebView();
+                  final MainActivity context = this;
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public void guardarJSON(String filename, String content) {
@@ -67,7 +70,7 @@ jobs:
                               writer.append(content);
                               writer.flush();
                               writer.close();
-                              runOnUiThread(() -> Toast.makeText(getContext(), "Guardado en Descargas", Toast.LENGTH_LONG).show());
+                              runOnUiThread(() -> Toast.makeText(context, "Guardado en Descargas", Toast.LENGTH_LONG).show());
                           } catch (Exception e) {}
                       }
                   }, "AndroidApp");
