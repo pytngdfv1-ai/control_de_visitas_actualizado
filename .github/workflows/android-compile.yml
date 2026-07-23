@@ -1,0 +1,47 @@
+name: Compilar APK en la Nube
+on:
+  workflow_dispatch: # Permite iniciar la compilacion manualmente desde GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo base
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17 (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Inicializar y Compilar Wrapper de Capacitor
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "control_de_visitas_actualizado" "com.miempresa.control_de_visitas_actualizado" --web-dir=www
+          mkdir www
+          # Copia tus archivos locales (HTML, CSS, JS) de la raiz a la carpeta de compilacion www
+          cp -r * www/ 2>/dev/null || true
+          rm -rf www/www www/android www/node_modules www/.github
+          npx cap add android
+          npx cap sync android
+
+      - name: Compilar APK Final (Gradle)
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Subir APK como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: controldevisitasactualizado-APK-Listo
+          path: android/app/build/outputs/apk/debug/app-debug.apk
