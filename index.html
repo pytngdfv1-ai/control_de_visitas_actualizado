@@ -83,6 +83,14 @@
 
                     <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
 
+                    <!-- NUEVA OPCIÓN: Borrar Contactos Seleccionados -->
+                    <button onclick="openDeleteContactsModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/25 hover:text-red-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-user-minus text-lg"></i></div>
+                        <span class="font-medium">Borrar Contactos Seleccionados</span>
+                    </button>
+
+                    <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
+
                     <button onclick="openManualMergeModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors flex items-center gap-3">
                         <div class="w-5 text-center"><i class="fa-solid fa-people-arrows text-lg"></i></div>
                         <span class="font-medium">Combinar Cliente (Manual)</span>
@@ -207,7 +215,46 @@
         </div>
     </main>
 
-    <!-- MODAL: CREAR / EDITAR CLIENTE (CON TELEFONO, DIRECCION, ZONA Y COORDENADAS) -->
+    <!-- MODAL NUEVO: SELECCIÓN Y BORRADO MÚLTIPLE DE CONTACTOS -->
+    <div id="deleteContactsModal" class="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/90">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-user-minus text-red-400"></i>
+                        Borrar Contactos Seleccionados
+                    </h3>
+                    <p class="text-xs text-slate-400">Selecciona los contactos que deseas eliminar permanentemente</p>
+                </div>
+                <button onclick="closeModal('deleteContactsModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <!-- Barra de búsqueda rápida dentro del modal de borrado y botón seleccionar todos -->
+            <div class="p-3 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between gap-2">
+                <input type="text" id="deleteModalSearch" placeholder="Filtrar contactos..." oninput="renderDeleteModalList()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500">
+                <button onclick="toggleSelectAllDelete()" id="selectAllDeleteBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex-shrink-0">
+                    Seleccionar Todos
+                </button>
+            </div>
+
+            <!-- Lista con checkboxes -->
+            <div class="p-3 overflow-y-auto flex-1 custom-scrollbar space-y-2" id="deleteContactsListContainer">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <div class="p-4 border-t border-slate-700 flex items-center justify-between bg-slate-900/90">
+                <span id="selectedDeleteCount" class="text-xs text-slate-400 font-medium">0 seleccionados</span>
+                <div class="flex gap-2">
+                    <button onclick="closeModal('deleteContactsModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
+                    <button onclick="confirmDeleteSelectedContacts()" class="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors shadow-lg shadow-red-900/50 flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar Marcados
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR / EDITAR CLIENTE -->
     <div id="clientModal" class="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
         <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
@@ -963,7 +1010,6 @@
                         : 'bg-slate-850 border-slate-800 hover:border-slate-700'
                 }`;
                 
-                // Enlace de mapas sin cuenta Google (OpenStreetMap / Nominatim estándar)
                 let mapButtonHtml = '';
                 if (client.lat && client.lng) {
                     const osmUrl = `https://www.openstreetmap.org/?mlat=${client.lat}&mlon=${client.lng}#map=17/${client.lat}/${client.lng}`;
@@ -974,7 +1020,6 @@
                     mapButtonHtml = `<a href="${osmSearchUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Buscar dirección en mapa"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
                 }
 
-                // Enlace directo a llamada telefónica
                 let phoneButtonHtml = '';
                 if (client.phone) {
                     phoneButtonHtml = `<a href="tel:${escapeHTML(client.phone)}" class="text-xs bg-slate-800 hover:bg-slate-700 text-emerald-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Llamar"><i class="fa-solid fa-phone"></i> Llamar</a>`;
@@ -1012,7 +1057,6 @@
                         </div>
                     </div>
                     
-                    <!-- Fila de Detalles y Enlaces Rápidos -->
                     <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-xs text-slate-400">
                         <div class="truncate pr-2 flex items-center gap-3">
                             ${client.address ? `<span class="truncate"><i class="fa-solid fa-location-dot text-slate-500 mr-1"></i>${escapeHTML(client.address)}</span>` : '<span class="text-slate-600 italic">Sin dirección</span>'}
@@ -1025,6 +1069,90 @@
                 `;
                 grid.appendChild(card);
             });
+        }
+
+        // ==========================================
+        // LÓGICA DE BORRADO SELECCIONADO (MENÚ HERRAMIENTAS)
+        // ==========================================
+        function openDeleteContactsModal() {
+            document.getElementById('deleteModalSearch').value = '';
+            renderDeleteModalList();
+            openModal('deleteContactsModal');
+        }
+
+        function renderDeleteModalList() {
+            const container = document.getElementById('deleteContactsListContainer');
+            const searchVal = document.getElementById('deleteModalSearch').value.toLowerCase().trim();
+            container.innerHTML = '';
+
+            let filtered = clients.map((client, index) => ({ client, index })).filter(({ client }) => {
+                if (!searchVal) return true;
+                return (client.id && client.id.toLowerCase().includes(searchVal)) ||
+                       client.name.toLowerCase().includes(searchVal) ||
+                       (client.zone && client.zone.toLowerCase().includes(searchVal));
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-6 text-xs">No hay contactos para mostrar.</p>`;
+                updateSelectedDeleteCount();
+                return;
+            }
+
+            filtered.forEach(({ client, index }) => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-xs hover:border-slate-700 transition-colors";
+                div.innerHTML = `
+                    <label class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                        <input type="checkbox" data-client-index="${index}" onchange="updateSelectedDeleteCount()" class="delete-checkbox w-4 h-4 rounded border-slate-700 text-red-600 bg-slate-800 cursor-pointer flex-shrink-0">
+                        <div class="truncate pr-2">
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                <span class="font-mono text-emerald-400 text-[10px]">#${client.id || 'S/N'}</span>
+                                ${client.zone ? `<span class="text-[9px] text-amber-300 bg-slate-800 px-1 rounded">${escapeHTML(client.zone)}</span>` : ''}
+                            </div>
+                            <span class="text-white font-medium truncate block">${escapeHTML(client.name)}</span>
+                        </div>
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+            updateSelectedDeleteCount();
+        }
+
+        function updateSelectedDeleteCount() {
+            const checkboxes = document.querySelectorAll('.delete-checkbox:checked');
+            const countEl = document.getElementById('selectedDeleteCount');
+            countEl.textContent = `${checkboxes.length} seleccionados`;
+        }
+
+        function toggleSelectAllDelete() {
+            const checkboxes = document.querySelectorAll('.delete-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            updateSelectedDeleteCount();
+        }
+
+        function confirmDeleteSelectedContacts() {
+            const checkboxes = document.querySelectorAll('.delete-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert("Por favor selecciona al menos un contacto para eliminar.");
+                return;
+            }
+
+            if (!confirm(`¿Estás seguro de eliminar permanentemente los ${checkboxes.length} contactos seleccionados?`)) {
+                return;
+            }
+
+            const indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute('data-client-index')));
+            indicesToDelete.sort((a, b) => b - a); // Ordenar de mayor a menor para evitar desajustes de índice al eliminar
+
+            indicesToDelete.forEach(idx => {
+                clients.splice(idx, 1);
+            });
+
+            saveToStorage();
+            renderClients();
+            closeModal('deleteContactsModal');
+            alert(`Se han eliminado ${indicesToDelete.length} contactos exitosamente.`);
         }
 
         function toggleVisit(index) {
@@ -1161,9 +1289,6 @@
             openModal('historyModal');
         }
 
-        // ==========================================
-        // IMPORTACIÓN AVANZADA (TXT / CONTACTOS)
-        // ==========================================
         function processImport() {
             const rawText = document.getElementById('importData').value.trim();
             if (!rawText) {
@@ -1180,8 +1305,6 @@
                 const parts = line.split(',').map(p => p.trim());
                 
                 if (parts.length >= 2) {
-                    // Posible formato: Código, Nombre, Teléfono, Dirección, Zona, Lat, Lng
-                    // O formato simple de contactos
                     let code = parts[0];
                     let name = parts[1];
                     let phone = parts[2] || '';
@@ -1190,7 +1313,6 @@
                     let lat = parts[5] || '';
                     let lng = parts[6] || '';
 
-                    // Validar si el primer campo parece nombre en vez de código
                     if (isNaN(code) && code.length > 5) {
                         name = code;
                         code = '';
@@ -1231,9 +1353,6 @@
             alert(`Importación completada: ${addedCount} nuevos agregados, ${updatedCount} actualizados.`);
         }
 
-        // ==========================================
-        // INTEGRACIÓN DE CONTACTOS DEL DISPOSITIVO
-        // ==========================================
         function openDeviceContactsModal() {
             openModal('deviceContactsModal');
         }
@@ -1298,7 +1417,6 @@
 
         function parseVCardOrCsv(text) {
             let added = 0;
-            // Detección simple para formato VCF (.vcf)
             if (text.includes('BEGIN:VCARD')) {
                 const vcards = text.split('BEGIN:VCARD');
                 vcards.forEach(vcard => {
@@ -1337,7 +1455,6 @@
                     }
                 });
             } else {
-                // Formato CSV estándar de contactos
                 const lines = text.split('\n');
                 lines.forEach(line => {
                     const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
@@ -1362,9 +1479,6 @@
             alert(`Importación masiva finalizada: ${added} nuevos contactos integrados.`);
         }
 
-        // ==========================================
-        // HERRAMIENTAS DE COMBINACIÓN Y FUSIÓN
-        // ==========================================
         function openManualMergeModal() {
             document.getElementById('manualSourceIndex').value = '';
             document.getElementById('manualSourceSearch').value = '';
@@ -1584,9 +1698,6 @@
             alert("¡Fusión completada!");
         }
 
-        // ==========================================
-        // OCR MÓDULO
-        // ==========================================
         async function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
