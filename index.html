@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Control de Visitas OCR</title>
+    <title>Control de Visitas OCR Avanzado</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -63,7 +63,7 @@
             <div>
                 <h1 class="text-lg font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-route text-emerald-500"></i>
-                    VisitasApp OCR
+                    VisitasApp Pro
                 </h1>
             </div>
             <!-- MENU DE HERRAMIENTAS DESPLEGABLE CON EFECTO LUMINOSO -->
@@ -74,8 +74,15 @@
                 <input type="file" id="backupInput" accept=".json" class="hidden" onchange="handleImportBackupPreview(event)">
                 
                 <!-- Dropdown -->
-                <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-64 bg-slate-850 rounded-xl shadow-2xl py-2 z-50 border border-slate-700 origin-top-right fade-in">
+                <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-72 bg-slate-850 rounded-xl shadow-2xl py-2 z-50 border border-slate-700 origin-top-right fade-in">
                     
+                    <button onclick="openDeviceContactsModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-slate-800 hover:text-emerald-300 transition-colors flex items-center gap-3">
+                        <div class="w-5 text-center"><i class="fa-solid fa-address-book text-lg"></i></div>
+                        <span class="font-medium">Sincronizar Contactos Dispositivo</span>
+                    </button>
+
+                    <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
+
                     <button onclick="openManualMergeModal(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors flex items-center gap-3">
                         <div class="w-5 text-center"><i class="fa-solid fa-people-arrows text-lg"></i></div>
                         <span class="font-medium">Combinar Cliente (Manual)</span>
@@ -102,12 +109,12 @@
 
                     <button onclick="exportClientsTxt(); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-slate-800 hover:text-emerald-300 transition-colors flex items-center gap-3">
                         <div class="w-5 text-center"><i class="fa-solid fa-file-arrow-down text-lg"></i></div>
-                        <span class="font-medium">Exportar Lista Clientes (TXT)</span>
+                        <span class="font-medium">Exportar Lista Completa (TXT)</span>
                     </button>
                     
                     <button onclick="openModal('importModal'); closeToolsMenu();" class="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-3">
                         <div class="w-5 text-center"><i class="fa-solid fa-file-import text-lg"></i></div>
-                        <span class="font-medium">Importar Lista Inicial (TXT)</span>
+                        <span class="font-medium">Importar Datos / Contactos (TXT)</span>
                     </button>
                     
                     <div class="h-px bg-slate-700/50 my-1 mx-3"></div>
@@ -126,7 +133,7 @@
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <i class="fa-solid fa-search text-slate-500"></i>
                 </div>
-                <input type="text" id="searchInput" placeholder="Buscar por código, nombre o fecha (ej: 22-08-2025)..." 
+                <input type="text" id="searchInput" placeholder="Buscar por código, nombre, zona o teléfono..." 
                     class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-2xl pl-10 pr-10 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm">
                 <button id="clearSearchBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white hidden transition-colors" onclick="clearSearch()">
                     <i class="fa-solid fa-times-circle"></i>
@@ -140,7 +147,6 @@
                         <i class="fa-solid fa-camera text-emerald-500"></i>
                         Escáner de Planilla
                     </h2>
-                    <!-- Input de fecha global de control -->
                     <input type="date" id="visitDate" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-500">
                 </div>
 
@@ -161,7 +167,6 @@
                     </div>
                 </div>
 
-                <!-- Notificación OCR y Resumen de Escaneo -->
                 <div id="ocrResult" class="hidden mt-3 p-3 rounded-lg text-sm bg-emerald-900/30 border border-emerald-800/50 text-emerald-300 flex flex-col gap-2 fade-in">
                     <div class="flex items-start justify-between">
                         <div class="flex items-start gap-2">
@@ -202,22 +207,51 @@
         </div>
     </main>
 
-    <!-- MODAL: CREAR / EDITAR CLIENTE -->
+    <!-- MODAL: CREAR / EDITAR CLIENTE (CON TELEFONO, DIRECCION, ZONA Y COORDENADAS) -->
     <div id="clientModal" class="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden fade-in">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
                 <h3 class="font-bold text-white text-base" id="clientModalTitle">Nuevo / Editar Cliente</h3>
                 <button onclick="closeModal('clientModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
             </div>
-            <div class="p-4 space-y-4">
+            <div class="p-4 space-y-3.5 overflow-y-auto flex-1 custom-scrollbar">
                 <input type="hidden" id="editClientIndex" value="-1">
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Código del Cliente (Opcional)</label>
-                    <input type="text" id="modalClientId" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="Ej: 1190 o S/N">
+                
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Código</label>
+                        <input type="text" id="modalClientId" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="1190">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Zona</label>
+                        <input type="text" id="modalClientZone" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: Zona Norte">
+                    </div>
                 </div>
+
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del Comercio / Cliente</label>
-                    <input type="text" id="modalClientName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: KIOSCO NATI">
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Nombre del Comercio / Cliente *</label>
+                    <input type="text" id="modalClientName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: KIOSCO NATI">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Teléfono</label>
+                    <input type="tel" id="modalClientPhone" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="Ej: 099123456">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-400 mb-1">Dirección</label>
+                    <input type="text" id="modalClientAddress" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: Av. Principal 1234">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Latitud</label>
+                        <input type="text" id="modalClientLat" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="-34.8836">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Longitud</label>
+                        <input type="text" id="modalClientLng" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="-56.1819">
+                    </div>
                 </div>
             </div>
             <div class="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-900/50">
@@ -227,20 +261,60 @@
         </div>
     </div>
 
-    <!-- MODAL: IMPORTAR LISTA TXT -->
+    <!-- MODAL: IMPORTAR DATOS / CONTACTOS TXT -->
     <div id="importModal" class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden fade-in">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 class="font-bold text-white">Importar Lista Inicial</h3>
+                <h3 class="font-bold text-white">Importar Datos o Contactos (TXT)</h3>
                 <button onclick="closeModal('importModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
-            <div class="p-4">
-                <p class="text-xs text-slate-400 mb-2">Pega la lista en formato: <code>Código, Nombre</code> (uno por línea).</p>
-                <textarea id="importData" rows="8" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none font-mono custom-scrollbar" placeholder="1190, NATI&#10;1220, LOS MELLIS"></textarea>
+            <div class="p-4 space-y-2">
+                <p class="text-xs text-slate-400">Pega tu lista estructurada (admite formatos de exportación de contactos o formato libre):</p>
+                <p class="text-[11px] text-emerald-400 font-mono bg-slate-900 p-2 rounded border border-slate-800">
+                    Código, Nombre, Teléfono, Dirección, Zona, Lat, Lng<br>
+                    Ej: 1190, KIOSCO NATI, 099123456, Av. Central, Norte, -34.8, -56.1
+                </p>
+                <textarea id="importData" rows="7" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none font-mono custom-scrollbar" placeholder="1190, NATI, 099123456..."></textarea>
             </div>
             <div class="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-900/50">
                 <button onclick="closeModal('importModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
-                <button onclick="processImport()" class="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-900/50">Guardar</button>
+                <button onclick="processImport()" class="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-900/50">Importar y Sincronizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SINCRONIZAR / IMPORTAR CONTACTOS DEL DISPOSITIVO -->
+    <div id="deviceContactsModal" class="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/90">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-address-book text-emerald-500"></i>
+                        Contactos del Dispositivo
+                    </h3>
+                    <p class="text-xs text-slate-400">Selecciona o importa contactos guardados en tu móvil</p>
+                </div>
+                <button onclick="closeModal('deviceContactsModal')" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 space-y-3">
+                <button onclick="requestNativeContactsPicker()" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-address-card text-base"></i> Abrir Selector Nativo de Contactos
+                </button>
+                
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-file-csv text-slate-500"></i>
+                    </div>
+                    <input type="file" id="vcardFileInput" accept=".vcf,.csv,.txt" class="hidden" onchange="handleVCardUpload(event)">
+                    <button onclick="document.getElementById('vcardFileInput').click()" class="w-full py-3 pl-10 pr-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition-colors border border-slate-700 text-left flex items-center gap-2">
+                        <i class="fa-solid fa-file-import text-blue-400"></i> Importar archivo VCF / CSV de contactos
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700 bg-slate-900/50 flex justify-end">
+                <button onclick="closeModal('deviceContactsModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">Cerrar</button>
             </div>
         </div>
     </div>
@@ -333,7 +407,6 @@
             </div>
             
             <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-4">
-                <!-- Selector Origen con Búsqueda -->
                 <div class="relative">
                     <label class="block text-xs font-semibold text-cyan-400 mb-1.5 flex items-center gap-1.5">
                         <i class="fa-solid fa-arrow-right-to-bracket"></i> 1. Cliente Origen (El que será absorbido y eliminado)
@@ -343,12 +416,9 @@
                         oninput="filterMergeDropdown('source')" 
                         onfocus="showMergeDropdown('source')"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-cyan-500 font-sans">
-                    <div id="manualSourceDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar">
-                        <!-- Opciones generadas por JS -->
-                    </div>
+                    <div id="manualSourceDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar"></div>
                 </div>
 
-                <!-- Selector Destino con Búsqueda -->
                 <div class="relative">
                     <label class="block text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
                         <i class="fa-solid fa-shield-halved"></i> 2. Cliente Destino (El que permanecerá y recibirá las fechas)
@@ -358,14 +428,12 @@
                         oninput="filterMergeDropdown('target')" 
                         onfocus="showMergeDropdown('target')"
                         class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-sans">
-                    <div id="manualTargetDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar">
-                        <!-- Opciones generadas por JS -->
-                    </div>
+                    <div id="manualTargetDropdown" class="hidden absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar"></div>
                 </div>
 
                 <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
                     <p class="text-slate-300 font-medium"><i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> ¿Qué sucederá?</p>
-                    <p>• Se unificarán las fechas de visita de ambos clientes sin duplicados.</p>
+                    <p>• Se unificarán las fechas de visita y datos de contacto de ambos clientes.</p>
                     <p>• El cliente origen desaparecerá del listado.</p>
                 </div>
             </div>
@@ -587,32 +655,26 @@
         
         function toggleToolsMenu() {
             const menu = document.getElementById('toolsMenu');
-            if (menu) {
-                menu.classList.toggle('hidden');
-            }
+            if (menu) menu.classList.toggle('hidden');
         }
 
         function closeToolsMenu() {
             const menu = document.getElementById('toolsMenu');
-            if (menu) {
-                menu.classList.add('hidden');
-            }
+            if (menu) menu.classList.add('hidden');
         }
 
-        // --- SISTEMA DE DESCARGA ADAPTATIVO (WEBVIEW NATIVO O NAVEGADOR) ---
         function triggerLocalDownload(content, fileName, mimeType) {
             if (window.AndroidApp && typeof window.AndroidApp.guardarJSON === 'function') {
                 try {
                     window.AndroidApp.guardarJSON(fileName, content);
                     return;
                 } catch (e) {
-                    console.error("Error al usar el puente nativo:", e);
+                    console.error("Error nativo:", e);
                 }
             }
 
             const base64 = btoa(unescape(encodeURIComponent(content)));
             const dataUri = `data:${mimeType};base64,${base64}`;
-
             const downloadAnchor = document.createElement('a');
             downloadAnchor.href = dataUri;
             downloadAnchor.download = fileName;
@@ -623,27 +685,27 @@
 
         function exportBackup() {
             const dataStr = JSON.stringify(clients, null, 2);
-            const fileName = `visitas_backup_${getSerializationDate()}.json`;
+            const fileName = `visitas_backup_pro_${getSerializationDate()}.json`;
             triggerLocalDownload(dataStr, fileName, 'application/json');
-            alert("El archivo se está guardando localmente.");
+            alert("Respaldo exportado exitosamente.");
         }
 
         function exportClientsTxt() {
-            let textContent = "";
+            let textContent = "Codigo,Nombre,Telefono,Direccion,Zona,Latitud,Longitud\n";
             clients.forEach(c => {
-                textContent += `${c.id || ''},${c.name}\n`;
+                textContent += `${c.id || ''},${c.name || ''},${c.phone || ''},${c.address || ''},${c.zone || ''},${c.lat || ''},${c.lng || ''}\n`;
             });
-            const fileName = `lista_clientes_${getSerializationDate()}.txt`;
+            const fileName = `lista_clientes_pro_${getSerializationDate()}.txt`;
             triggerLocalDownload(textContent, fileName, 'text/plain');
-            alert("El archivo se está guardando localmente.");
+            alert("Lista exportada exitosamente.");
         }
 
         function resetData() {
-            if (confirm("¿Estás seguro de restablecer todos los datos a la lista original? Se perderán las visitas y cambios guardados.")) {
-                localStorage.removeItem('visitas_app_clients_v3');
+            if (confirm("¿Estás seguro de restablecer todos los datos? Se perderán los cambios y visitas guardadas.")) {
+                localStorage.removeItem('visitas_app_clients_v4');
                 clients = parseRawData();
                 renderClients();
-                alert("Datos restablecidos exitosamente.");
+                alert("Datos restablecidos.");
             }
         }
 
@@ -654,18 +716,15 @@
             reader.onload = function(e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
-                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                        pendingBackupData = parseLegacyBackupFormat(parsed);
-                    } else if (Array.isArray(parsed)) {
+                    if (Array.isArray(parsed)) {
                         pendingBackupData = parsed;
                     } else {
-                        alert("El archivo JSON no tiene un formato válido de respaldo.");
-                        return;
+                        pendingBackupData = parseLegacyBackupFormat(parsed);
                     }
                     openBackupReviewModal();
                 } catch(err) {
                     console.error(err);
-                    alert("Error al leer o procesar el archivo JSON.");
+                    alert("Error al leer el archivo JSON de respaldo.");
                 }
             };
             reader.readAsText(file);
@@ -673,7 +732,6 @@
         }
 
         function parseLegacyBackupFormat(rawObj) {
-            let clientVisitsMap = {};
             let baseClients = [...clients];
             let clientMapByName = {};
             baseClients.forEach(c => {
@@ -687,20 +745,14 @@
                     const dateStr = key.replace('daily-data-', '');
                     try {
                         let innerJson = rawObj[key];
-                        if (typeof innerJson === 'string') {
-                            innerJson = JSON.parse(innerJson);
-                        }
+                        if (typeof innerJson === 'string') innerJson = JSON.parse(innerJson);
                         if (innerJson && Array.isArray(innerJson.rows)) {
                             innerJson.rows.forEach(row => {
                                 if (row && row.account) {
                                     const accName = row.account.toUpperCase().trim();
                                     if (accName) {
                                         if (!clientMapByName[accName]) {
-                                            const newClient = {
-                                                id: '',
-                                                name: row.account.trim(),
-                                                visitDates: []
-                                            };
+                                            const newClient = { id: '', name: row.account.trim(), phone: '', address: '', zone: '', lat: '', lng: '', visitDates: [] };
                                             baseClients.push(newClient);
                                             clientMapByName[accName] = newClient;
                                         }
@@ -711,30 +763,22 @@
                                 }
                             });
                         }
-                    } catch(e) {
-                        console.error("Error parsing inner json for key", key, e);
-                    }
+                    } catch(e) {}
                 }
             }
-
-            baseClients.forEach(c => {
-                if (c.visitDates) {
-                    c.visitDates.sort((a, b) => b.localeCompare(a));
-                }
-            });
-
+            baseClients.forEach(c => { if (c.visitDates) c.visitDates.sort((a, b) => b.localeCompare(a)); });
             return baseClients;
         }
 
         function openBackupReviewModal() {
             const modal = document.getElementById('ocrReviewModal');
             document.getElementById('reviewModalTitle').innerHTML = `<i class="fa-solid fa-cloud-arrow-down text-blue-400"></i> Importar Backup JSON`;
-            document.getElementById('reviewModalSubtitle').textContent = `Se encontraron ${pendingBackupData.length} registros en el backup.`;
+            document.getElementById('reviewModalSubtitle').textContent = `Se encontraron ${pendingBackupData.length} registros.`;
             
             const container = document.getElementById('ocrReviewListContainer');
             container.innerHTML = '';
 
-            pendingBackupData.forEach((item, index) => {
+            pendingBackupData.forEach((item) => {
                 const div = document.createElement('div');
                 div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs";
                 div.innerHTML = `
@@ -754,7 +798,16 @@
 
         function confirmAndApplyBackup() {
             if (pendingBackupData && pendingBackupData.length > 0) {
-                clients = pendingBackupData;
+                clients = pendingBackupData.map(c => ({
+                    id: c.id || '',
+                    name: c.name || '',
+                    phone: c.phone || '',
+                    address: c.address || '',
+                    zone: c.zone || '',
+                    lat: c.lat || '',
+                    lng: c.lng || '',
+                    visitDates: c.visitDates || []
+                }));
                 saveToStorage();
                 renderClients();
                 closeModal('ocrReviewModal');
@@ -763,27 +816,20 @@
         }
 
         const escapeHTML = (str) => {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({
-                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-                }[tag] || tag)
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
             );
         };
 
         const getUiDate = () => {
             const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         };
 
         const getSerializationDate = () => {
             const today = new Date();
-            const dd = String(today.getDate()).padStart(2, '0');
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const yyyy = today.getFullYear();
-            return `${dd}-${mm}-${yyyy}`;
+            return `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
         };
 
         function convertToSerializationFormat(dateString) {
@@ -800,13 +846,11 @@
             setupEventListeners();
             renderClients();
 
-            setInterval(() => {
-                saveToStorage();
-            }, 30000);
+            setInterval(() => { saveToStorage(); }, 30000);
         }
 
         function loadFromStorage() {
-            const saved = localStorage.getItem('visitas_app_clients_v3');
+            const saved = localStorage.getItem('visitas_app_clients_v4');
             if (saved) {
                 try {
                     clients = JSON.parse(saved);
@@ -819,7 +863,7 @@
         }
 
         function saveToStorage() {
-            localStorage.setItem('visitas_app_clients_v3', JSON.stringify(clients));
+            localStorage.setItem('visitas_app_clients_v4', JSON.stringify(clients));
         }
 
         function parseRawData() {
@@ -828,9 +872,16 @@
             lines.forEach(line => {
                 const parts = line.split(',');
                 if (parts.length >= 2) {
-                    const id = parts[0].trim();
-                    const name = parts.slice(1).join(',').trim();
-                    parsed.push({ id, name, visitDates: [] });
+                    parsed.push({
+                        id: parts[0].trim(),
+                        name: parts.slice(1).join(',').trim(),
+                        phone: '',
+                        address: '',
+                        zone: '',
+                        lat: '',
+                        lng: '',
+                        visitDates: []
+                    });
                 }
             });
             return parsed;
@@ -850,7 +901,6 @@
                 renderClients();
             });
 
-            // Cerrar dropdowns manuales al hacer clic fuera
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('#manualMergeModal')) {
                     const srcDrop = document.getElementById('manualSourceDropdown');
@@ -883,16 +933,13 @@
                 if (!searchQuery) return true;
                 const matchId = c.id && c.id.toLowerCase().includes(searchQuery);
                 const matchName = c.name && c.name.toLowerCase().includes(searchQuery);
+                const matchPhone = c.phone && c.phone.toLowerCase().includes(searchQuery);
+                const matchZone = c.zone && c.zone.toLowerCase().includes(searchQuery);
+                const matchAddress = c.address && c.address.toLowerCase().includes(searchQuery);
                 
-                let matchDate = false;
-                if (c.visitDates && c.visitDates.length > 0) {
-                    matchDate = c.visitDates.some(dateStr => {
-                        if (dateStr.includes(searchQuery)) return true;
-                        return false;
-                    });
-                }
+                let matchDate = c.visitDates && c.visitDates.some(dateStr => dateStr.includes(searchQuery));
 
-                return matchId || matchName || matchDate;
+                return matchId || matchName || matchPhone || matchZone || matchAddress || matchDate;
             });
 
             const visitedTotal = clients.filter(c => c.visitDates && c.visitDates.includes(currentDate)).length;
@@ -910,44 +957,70 @@
                 const isVisitedToday = client.visitDates && client.visitDates.includes(currentDate);
 
                 const card = document.createElement('div');
-                card.className = `p-4 rounded-2xl border transition-all flex items-center justify-between shadow-sm cursor-pointer ${
+                card.className = `p-3.5 rounded-2xl border transition-all flex flex-col gap-2.5 shadow-sm ${
                     isVisitedToday 
                         ? 'bg-emerald-950/20 border-emerald-800/60' 
                         : 'bg-slate-850 border-slate-800 hover:border-slate-700'
                 }`;
                 
-                card.onclick = (e) => {
-                    if (e.target.closest('button')) return;
-                    openHistoryModal(originalIndex);
-                };
+                // Enlace de mapas sin cuenta Google (OpenStreetMap / Nominatim estándar)
+                let mapButtonHtml = '';
+                if (client.lat && client.lng) {
+                    const osmUrl = `https://www.openstreetmap.org/?mlat=${client.lat}&mlon=${client.lng}#map=17/${client.lat}/${client.lng}`;
+                    mapButtonHtml = `<a href="${osmUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Ver ubicación en mapa"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
+                } else if (client.address) {
+                    const encodedAddr = encodeURIComponent(client.address + (client.zone ? ', ' + client.zone : ''));
+                    const osmSearchUrl = `https://www.openstreetmap.org/search?query=${encodedAddr}`;
+                    mapButtonHtml = `<a href="${osmSearchUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Buscar dirección en mapa"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
+                }
+
+                // Enlace directo a llamada telefónica
+                let phoneButtonHtml = '';
+                if (client.phone) {
+                    phoneButtonHtml = `<a href="tel:${escapeHTML(client.phone)}" class="text-xs bg-slate-800 hover:bg-slate-700 text-emerald-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Llamar"><i class="fa-solid fa-phone"></i> Llamar</a>`;
+                }
 
                 card.innerHTML = `
-                    <div class="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
-                        <button onclick="toggleVisit(${originalIndex})" class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                            isVisitedToday 
-                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40' 
-                                : 'bg-slate-800 text-slate-500 hover:text-slate-300'
-                        }">
-                            <i class="fa-solid fa-check text-xs ${isVisitedToday ? '' : 'opacity-0'}"></i>
-                        </button>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-0.5">
-                                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-semibold">
-                                    ${client.id ? '#' + escapeHTML(client.id) : 'S/N'}
-                                </span>
-                                ${isVisitedToday ? '<span class="text-[10px] text-emerald-400 font-medium">¡Visitado hoy!</span>' : ''}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 flex-1 min-w-0 pr-2 cursor-pointer" onclick="openHistoryModal(${originalIndex})">
+                            <button onclick="event.stopPropagation(); toggleVisit(${originalIndex})" class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
+                                isVisitedToday 
+                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40' 
+                                    : 'bg-slate-800 text-slate-500 hover:text-slate-300'
+                            }">
+                                <i class="fa-solid fa-check text-xs ${isVisitedToday ? '' : 'opacity-0'}"></i>
+                            </button>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                                    <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-semibold">
+                                        ${client.id ? '#' + escapeHTML(client.id) : 'S/N'}
+                                    </span>
+                                    ${client.zone ? `<span class="text-[10px] bg-slate-800/80 text-amber-300 px-1.5 py-0.5 rounded">${escapeHTML(client.zone)}</span>` : ''}
+                                    ${isVisitedToday ? '<span class="text-[10px] text-emerald-400 font-medium">¡Visitado hoy!</span>' : ''}
+                                </div>
+                                <h3 class="text-sm font-semibold text-white truncate">${escapeHTML(client.name)}</h3>
                             </div>
-                            <h3 class="text-sm font-semibold text-white truncate">${escapeHTML(client.name)}</h3>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <button onclick="openClientModal(${originalIndex})" class="p-2 text-slate-400 hover:text-white transition-colors" title="Editar Cliente">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="openHistoryModal(${originalIndex})" class="p-2 text-slate-400 hover:text-emerald-400 transition-colors relative" title="Ver Historial">
+                                <i class="fa-regular fa-calendar-days text-sm"></i>
+                                ${client.visitDates && client.visitDates.length > 0 ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>` : ''}
+                            </button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-1">
-                        <button onclick="openClientModal(${originalIndex})" class="p-2 text-slate-400 hover:text-white transition-colors" title="Editar Cliente">
-                            <i class="fa-solid fa-pen text-xs"></i>
-                        </button>
-                        <button onclick="openHistoryModal(${originalIndex})" class="p-2 text-slate-400 hover:text-emerald-400 transition-colors relative" title="Ver Historial">
-                            <i class="fa-regular fa-calendar-days text-sm"></i>
-                            ${client.visitDates && client.visitDates.length > 0 ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>` : ''}
-                        </button>
+                    
+                    <!-- Fila de Detalles y Enlaces Rápidos -->
+                    <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-xs text-slate-400">
+                        <div class="truncate pr-2 flex items-center gap-3">
+                            ${client.address ? `<span class="truncate"><i class="fa-solid fa-location-dot text-slate-500 mr-1"></i>${escapeHTML(client.address)}</span>` : '<span class="text-slate-600 italic">Sin dirección</span>'}
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            ${phoneButtonHtml}
+                            ${mapButtonHtml}
+                        </div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -958,9 +1031,7 @@
             const rawDate = document.getElementById('visitDate').value || getUiDate();
             const currentDate = convertToSerializationFormat(rawDate);
             
-            if (!clients[index].visitDates) {
-                clients[index].visitDates = [];
-            }
+            if (!clients[index].visitDates) clients[index].visitDates = [];
 
             const pos = clients[index].visitDates.indexOf(currentDate);
             if (pos > -1) {
@@ -977,19 +1048,27 @@
         function openClientModal(index) {
             const modal = document.getElementById('clientModal');
             const titleEl = document.getElementById('clientModalTitle');
-            const idInput = document.getElementById('modalClientId');
-            const nameInput = document.getElementById('modalClientName');
             const indexInput = document.getElementById('editClientIndex');
 
             indexInput.value = index;
             if (index >= 0) {
                 titleEl.textContent = "Editar Cliente";
-                idInput.value = clients[index].id || "";
-                nameInput.value = clients[index].name || "";
+                document.getElementById('modalClientId').value = clients[index].id || "";
+                document.getElementById('modalClientName').value = clients[index].name || "";
+                document.getElementById('modalClientPhone').value = clients[index].phone || "";
+                document.getElementById('modalClientAddress').value = clients[index].address || "";
+                document.getElementById('modalClientZone').value = clients[index].zone || "";
+                document.getElementById('modalClientLat').value = clients[index].lat || "";
+                document.getElementById('modalClientLng').value = clients[index].lng || "";
             } else {
                 titleEl.textContent = "Nuevo Cliente";
-                idInput.value = "";
-                nameInput.value = "";
+                document.getElementById('modalClientId').value = "";
+                document.getElementById('modalClientName').value = "";
+                document.getElementById('modalClientPhone').value = "";
+                document.getElementById('modalClientAddress').value = "";
+                document.getElementById('modalClientZone').value = "";
+                document.getElementById('modalClientLat').value = "";
+                document.getElementById('modalClientLng').value = "";
             }
 
             modal.classList.remove('hidden');
@@ -998,21 +1077,36 @@
 
         function saveClientFromModal() {
             const index = parseInt(document.getElementById('editClientIndex').value);
-            const idInput = document.getElementById('modalClientId').value.trim();
-            const nameInput = document.getElementById('modalClientName').value.trim();
+            const idVal = document.getElementById('modalClientId').value.trim();
+            const nameVal = document.getElementById('modalClientName').value.trim();
+            const phoneVal = document.getElementById('modalClientPhone').value.trim();
+            const addressVal = document.getElementById('modalClientAddress').value.trim();
+            const zoneVal = document.getElementById('modalClientZone').value.trim();
+            const latVal = document.getElementById('modalClientLat').value.trim();
+            const lngVal = document.getElementById('modalClientLng').value.trim();
 
-            if (!nameInput) {
-                alert("Por favor ingresa un nombre para el cliente.");
+            if (!nameVal) {
+                alert("Por favor ingresa un nombre para el comercio o cliente.");
                 return;
             }
 
             if (index >= 0) {
-                clients[index].id = idInput;
-                clients[index].name = nameInput;
+                clients[index].id = idVal;
+                clients[index].name = nameVal;
+                clients[index].phone = phoneVal;
+                clients[index].address = addressVal;
+                clients[index].zone = zoneVal;
+                clients[index].lat = latVal;
+                clients[index].lng = lngVal;
             } else {
                 clients.unshift({
-                    id: idInput,
-                    name: nameInput,
+                    id: idVal,
+                    name: nameVal,
+                    phone: phoneVal,
+                    address: addressVal,
+                    zone: zoneVal,
+                    lat: latVal,
+                    lng: lngVal,
                     visitDates: []
                 });
             }
@@ -1027,6 +1121,14 @@
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
             }
         }
 
@@ -1056,21 +1158,213 @@
                 });
             }
 
-            const modal = document.getElementById('historyModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
+            openModal('historyModal');
         }
 
         // ==========================================
-        // FUNCIONES IMPLEMENTADAS PARA HERRAMIENTAS
+        // IMPORTACIÓN AVANZADA (TXT / CONTACTOS)
         // ==========================================
+        function processImport() {
+            const rawText = document.getElementById('importData').value.trim();
+            if (!rawText) {
+                alert("Por favor ingresa datos para importar.");
+                return;
+            }
 
+            const lines = rawText.split('\n');
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            lines.forEach(line => {
+                if (!line.trim()) return;
+                const parts = line.split(',').map(p => p.trim());
+                
+                if (parts.length >= 2) {
+                    // Posible formato: Código, Nombre, Teléfono, Dirección, Zona, Lat, Lng
+                    // O formato simple de contactos
+                    let code = parts[0];
+                    let name = parts[1];
+                    let phone = parts[2] || '';
+                    let address = parts[3] || '';
+                    let zone = parts[4] || '';
+                    let lat = parts[5] || '';
+                    let lng = parts[6] || '';
+
+                    // Validar si el primer campo parece nombre en vez de código
+                    if (isNaN(code) && code.length > 5) {
+                        name = code;
+                        code = '';
+                        phone = parts[1] || '';
+                        address = parts[2] || '';
+                    }
+
+                    let existing = clients.find(c => (code && c.id === code) || c.name.toUpperCase() === name.toUpperCase());
+
+                    if (existing) {
+                        if (phone && !existing.phone) existing.phone = phone;
+                        if (address && !existing.address) existing.address = address;
+                        if (zone && !existing.zone) existing.zone = zone;
+                        if (lat && !existing.lat) existing.lat = lat;
+                        if (lng && !existing.lng) existing.lng = lng;
+                        if (code && !existing.id) existing.id = code;
+                        updatedCount++;
+                    } else {
+                        clients.push({
+                            id: code || '',
+                            name: name,
+                            phone: phone,
+                            address: address,
+                            zone: zone,
+                            lat: lat,
+                            lng: lng,
+                            visitDates: []
+                        });
+                        addedCount++;
+                    }
+                }
+            });
+
+            saveToStorage();
+            renderClients();
+            closeModal('importModal');
+            document.getElementById('importData').value = '';
+            alert(`Importación completada: ${addedCount} nuevos agregados, ${updatedCount} actualizados.`);
+        }
+
+        // ==========================================
+        // INTEGRACIÓN DE CONTACTOS DEL DISPOSITIVO
+        // ==========================================
+        function openDeviceContactsModal() {
+            openModal('deviceContactsModal');
+        }
+
+        async function requestNativeContactsPicker() {
+            if ('contacts' in navigator && 'Select' in navigator.contacts) {
+                try {
+                    const props = ['name', 'tel', 'address'];
+                    const opts = { multiple: true };
+                    const contacts = await navigator.contacts.select(props, opts);
+                    
+                    let imported = 0;
+                    contacts.forEach(contact => {
+                        const name = contact.name ? contact.name[0] : 'Sin nombre';
+                        const phone = contact.tel ? contact.tel[0] : '';
+                        const address = contact.address && contact.address[0] ? contact.address[0].addressFormatted || '' : '';
+
+                        let existing = clients.find(c => c.name.toUpperCase() === name.toUpperCase());
+                        if (existing) {
+                            if (phone && !existing.phone) existing.phone = phone;
+                            if (address && !existing.address) existing.address = address;
+                        } else {
+                            clients.push({
+                                id: '',
+                                name: name,
+                                phone: phone,
+                                address: address,
+                                zone: '',
+                                lat: '',
+                                lng: '',
+                                visitDates: []
+                            });
+                            imported++;
+                        }
+                    });
+
+                    saveToStorage();
+                    renderClients();
+                    closeModal('deviceContactsModal');
+                    alert(`Se importaron ${imported} contactos desde el dispositivo.`);
+                } catch (ex) {
+                    console.error(ex);
+                    alert("No se pudo acceder a los contactos del dispositivo o el navegador no lo permite.");
+                }
+            } else {
+                alert("El selector nativo de contactos no está disponible en este navegador/dispositivo. Puedes usar la opción de importar archivo VCF o pegar texto.");
+            }
+        }
+
+        function handleVCardUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parseVCardOrCsv(content);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function parseVCardOrCsv(text) {
+            let added = 0;
+            // Detección simple para formato VCF (.vcf)
+            if (text.includes('BEGIN:VCARD')) {
+                const vcards = text.split('BEGIN:VCARD');
+                vcards.forEach(vcard => {
+                    let name = '';
+                    let phone = '';
+                    let address = '';
+
+                    const lines = vcard.split('\n');
+                    lines.forEach(l => {
+                        if (l.startsWith('FN:')) name = l.replace('FN:', '').trim();
+                        else if (l.startsWith('N:')) {
+                            if (!name) {
+                                const parts = l.replace('N:', '').split(';');
+                                name = `${parts[1] || ''} ${parts[0] || ''}`.trim();
+                            }
+                        }
+                        else if (l.startsWith('TEL')) {
+                            const pParts = l.split(':');
+                            if (pParts.length > 1) phone = pParts[1].trim();
+                        }
+                        else if (l.startsWith('ADR')) {
+                            const aParts = l.split(':');
+                            if (aParts.length > 1) address = aParts[1].replace(/;/g, ' ').trim();
+                        }
+                    });
+
+                    if (name) {
+                        let existing = clients.find(c => c.name.toUpperCase() === name.toUpperCase());
+                        if (!existing) {
+                            clients.push({ id: '', name, phone, address, zone: '', lat: '', lng: '', visitDates: [] });
+                            added++;
+                        } else {
+                            if (phone && !existing.phone) existing.phone = phone;
+                            if (address && !existing.address) existing.address = address;
+                        }
+                    }
+                });
+            } else {
+                // Formato CSV estándar de contactos
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+                    if (parts.length >= 2) {
+                        const name = parts[0];
+                        const phone = parts[1] || '';
+                        const address = parts[2] || '';
+                        if (name && name.toLowerCase() !== 'name' && name.toLowerCase() !== 'nombre') {
+                            let existing = clients.find(c => c.name.toUpperCase() === name.toUpperCase());
+                            if (!existing) {
+                                clients.push({ id: '', name, phone, address, zone: '', lat: '', lng: '', visitDates: [] });
+                                added++;
+                            }
+                        }
+                    }
+                });
+            }
+
+            saveToStorage();
+            renderClients();
+            closeModal('deviceContactsModal');
+            alert(`Importación masiva finalizada: ${added} nuevos contactos integrados.`);
+        }
+
+        // ==========================================
+        // HERRAMIENTAS DE COMBINACIÓN Y FUSIÓN
+        // ==========================================
         function openManualMergeModal() {
             document.getElementById('manualSourceIndex').value = '';
             document.getElementById('manualSourceSearch').value = '';
@@ -1145,22 +1439,25 @@
             const sourceClient = clients[srcIdx];
             const targetClient = clients[tgtIdx];
 
-            if (!confirm(`¿Estás seguro de fusionar "${sourceClient.name}" dentro de "${targetClient.name}"? El cliente origen será eliminado.`)) {
+            if (!confirm(`¿Estás seguro de fusionar "${sourceClient.name}" dentro de "${targetClient.name}"? El origen será eliminado.`)) {
                 return;
             }
 
-            // Unir fechas sin duplicados
             if (!targetClient.visitDates) targetClient.visitDates = [];
             if (sourceClient.visitDates && sourceClient.visitDates.length > 0) {
                 sourceClient.visitDates.forEach(date => {
-                    if (!targetClient.visitDates.includes(date)) {
-                        targetClient.visitDates.push(date);
-                    }
+                    if (!targetClient.visitDates.includes(date)) targetClient.visitDates.push(date);
                 });
                 targetClient.visitDates.sort((a, b) => b.localeCompare(a));
             }
 
-            // Eliminar cliente origen
+            if (!targetClient.phone && sourceClient.phone) targetClient.phone = sourceClient.phone;
+            if (!targetClient.address && sourceClient.address) targetClient.address = sourceClient.address;
+            if (!targetClient.zone && sourceClient.zone) targetClient.zone = sourceClient.zone;
+            if (!targetClient.lat && sourceClient.lat) targetClient.lat = sourceClient.lat;
+            if (!targetClient.lng && sourceClient.lng) targetClient.lng = sourceClient.lng;
+            if (!targetClient.id && sourceClient.id) targetClient.id = sourceClient.id;
+
             clients.splice(srcIdx, 1);
 
             saveToStorage();
@@ -1174,12 +1471,7 @@
             container.innerHTML = '';
 
             const normalizeStr = (str) => {
-                return str.toUpperCase()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .replace(/[^A-Z0-9\s]/g, "")
-                    .replace(/\s+/g, " ")
-                    .trim();
+                return str.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9\s]/g, "").replace(/\s+/g, " ").trim();
             };
 
             const getLevenshteinDistance = (a, b) => {
@@ -1191,10 +1483,7 @@
                         if (b.charAt(i - 1) === a.charAt(j - 1)) {
                             matrix[i][j] = matrix[i - 1][j - 1];
                         } else {
-                            matrix[i][j] = Math.min(
-                                matrix[i - 1][j - 1] + 1,
-                                Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
-                            );
+                            matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
                         }
                     }
                 }
@@ -1222,19 +1511,15 @@
                         const shorter = name1.length > name2.length ? name2 : name1;
                         const dist = getLevenshteinDistance(longer, shorter);
                         const score = (longer.length - dist) / longer.length;
-                        if (score >= 0.78) {
-                            isSimilar = true;
-                        }
+                        if (score >= 0.78) isSimilar = true;
                     }
 
-                    if (isSimilar) {
-                        similarPairs.push({ idxA: i, idxB: j });
-                    }
+                    if (isSimilar) similarPairs.push({ idxA: i, idxB: j });
                 }
             }
 
             if (similarPairs.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No se detectaron clientes con nombres excesivamente similares.</p>`;
+                container.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No se detectaron clientes similares.</p>`;
             } else {
                 similarPairs.forEach(pair => {
                     const clientA = clients[pair.idxA];
@@ -1250,17 +1535,15 @@
                             <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
                                 <span class="font-mono text-emerald-400">#${clientA.id || 'S/N'}</span>
                                 <p class="text-white font-bold truncate">${escapeHTML(clientA.name)}</p>
-                                <span class="text-[10px] text-slate-400">${clientA.visitDates ? clientA.visitDates.length : 0} visitas</span>
                             </div>
                             <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
                                 <span class="font-mono text-emerald-400">#${clientB.id || 'S/N'}</span>
                                 <p class="text-white font-bold truncate">${escapeHTML(clientB.name)}</p>
-                                <span class="text-[10px] text-slate-400">${clientB.visitDates ? clientB.visitDates.length : 0} visitas</span>
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-1">
                             <button onclick="mergeSimilarPair(${pair.idxA}, ${pair.idxB})" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors shadow flex items-center gap-1.5">
-                                <i class="fa-solid fa-code-merge"></i> Fusionar (Mantener A / Absorber B)
+                                <i class="fa-solid fa-code-merge"></i> Fusionar
                             </button>
                         </div>
                     `;
@@ -1282,23 +1565,28 @@
             if (!clientA.visitDates) clientA.visitDates = [];
             if (clientB.visitDates && clientB.visitDates.length > 0) {
                 clientB.visitDates.forEach(date => {
-                    if (!clientA.visitDates.includes(date)) {
-                        clientA.visitDates.push(date);
-                    }
+                    if (!clientA.visitDates.includes(date)) clientA.visitDates.push(date);
                 });
                 clientA.visitDates.sort((a, b) => b.localeCompare(a));
             }
+
+            if (!clientA.phone && clientB.phone) clientA.phone = clientB.phone;
+            if (!clientA.address && clientB.address) clientA.address = clientB.address;
+            if (!clientA.zone && clientB.zone) clientA.zone = clientB.zone;
+            if (!clientA.lat && clientB.lat) clientA.lat = clientB.lat;
+            if (!clientA.lng && clientB.lng) clientA.lng = clientB.lng;
 
             clients.splice(idxB, 1);
 
             saveToStorage();
             renderClients();
-            openSimilarityMergeModal(); // Recargar la lista de similares restante
-            alert("¡Fusión completada con éxito!");
+            openSimilarityMergeModal();
+            alert("¡Fusión completada!");
         }
 
         // ==========================================
-
+        // OCR MÓDULO
+        // ==========================================
         async function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1313,16 +1601,16 @@
             progressEl.classList.remove('hidden');
             resultBox.classList.add('hidden');
             progressBar.style.width = '10%';
-            statusText.textContent = "Cargando motor de reconocimiento OCR...";
+            statusText.textContent = "Cargando motor OCR...";
 
             try {
                 const worker = await Tesseract.createWorker('spa');
                 progressBar.style.width = '40%';
-                statusText.textContent = "Escaneando imagen y leyendo texto...";
+                statusText.textContent = "Escaneando imagen...";
 
                 const ret = await worker.recognize(file);
                 progressBar.style.width = '90%';
-                statusText.textContent = "Procesando nombres de clientes...";
+                statusText.textContent = "Procesando texto...";
 
                 await worker.terminate();
 
@@ -1334,13 +1622,12 @@
                 }, 400);
 
                 processOcrText(ret.data.text);
-
             } catch (err) {
                 console.error(err);
                 progressEl.classList.add('hidden');
                 dropZoneContent.classList.remove('opacity-30');
                 progressBar.style.width = '0%';
-                alert("Ocurrió un error al procesar la imagen con OCR.");
+                alert("Error al procesar la imagen con OCR.");
             } finally {
                 event.target.value = '';
             }
@@ -1351,65 +1638,20 @@
             pendingOcrSessionResults = [];
 
             const normalizeStr = (str) => {
-                return str.toUpperCase()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .replace(/[^A-Z0-9\s]/g, "")
-                    .replace(/\s+/g, " ")
-                    .trim();
-            };
-
-            const getLevenshteinDistance = (a, b) => {
-                const matrix = [];
-                for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
-                for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
-                for (let i = 1; i <= b.length; i++) {
-                    for (let j = 1; j <= a.length; j++) {
-                        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                            matrix[i][j] = matrix[i - 1][j - 1];
-                        } else {
-                            matrix[i][j] = Math.min(
-                                matrix[i - 1][j - 1] + 1,
-                                Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
-                            );
-                        }
-                    }
-                }
-                return matrix[b.length][a.length];
-            };
-
-            const calculateSimilarity = (str1, str2) => {
-                const clean1 = normalizeStr(str1);
-                const clean2 = normalizeStr(str2);
-                if (!clean1 || !clean2) return 0;
-                
-                if (clean1.includes(clean2) || clean2.includes(clean1)) {
-                    return 0.85;
-                }
-
-                const longer = clean1.length > clean2.length ? clean1 : clean2;
-                const shorter = clean1.length > clean2.length ? clean2 : clean1;
-                const editDistance = getLevenshteinDistance(longer, shorter);
-                return (longer.length - editDistance) / longer.length;
+                return str.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9\s]/g, "").replace(/\s+/g, " ").trim();
             };
 
             lines.forEach(rawLine => {
                 const cleanLine = normalizeStr(rawLine);
                 if (cleanLine.length < 3) return;
 
-                const isNumericOrPrice = /^[\d\s.,\$\-\/]+$/.test(cleanLine) || 
-                                         /^\d+([.,]\d{1,2})?$/.test(cleanLine) || 
-                                         /^\$\s*\d+/.test(cleanLine) ||
-                                         /^[.,]\d+$/.test(cleanLine);
+                const isNumericOrPrice = /^[\d\s.,\$\-\/]+$/.test(cleanLine);
                 if (isNumericOrPrice) return;
 
                 let foundClient = clients.find(c => {
                     const dbName = normalizeStr(c.name);
                     const dbId = c.id ? c.id.trim() : "";
-                    return (dbId && cleanLine === dbId) || 
-                           dbName === cleanLine || 
-                           dbName.includes(cleanLine) || 
-                           cleanLine.includes(dbName);
+                    return (dbId && cleanLine === dbId) || dbName === cleanLine || dbName.includes(cleanLine) || cleanLine.includes(dbName);
                 });
 
                 if (foundClient) {
@@ -1419,51 +1661,20 @@
                             clientRef: foundClient,
                             displayName: foundClient.name,
                             id: foundClient.id,
-                            matchType: 'exact',
-                            similarSuggestion: null,
                             selected: true
                         });
                     }
                 } else {
-                    let bestMatch = null;
-                    let highestScore = 0;
-
-                    clients.forEach(c => {
-                        const score = calculateSimilarity(cleanLine, c.name);
-                        if (score > highestScore) {
-                            highestScore = score;
-                            bestMatch = c;
-                        }
-                    });
-
-                    const isCommonWord = ['TOTAL', 'FECHA', 'PAGINA', 'RUTA', 'CLIENTE', 'DIRECCION', 'OBS', 'VENDEDOR', 'LISTA', 'HOJA', 'SUBTOTAL', 'SALDO', 'CANTIDAD', 'IMPORTE'].some(w => cleanLine.includes(w));
-                    
+                    const isCommonWord = ['TOTAL', 'FECHA', 'PAGINA', 'RUTA', 'CLIENTE', 'DIRECCION', 'OBS', 'VENDEDOR'].some(w => cleanLine.includes(w));
                     if (!isCommonWord && cleanLine.length >= 4) {
-                        const alreadyPending = pendingOcrSessionResults.some(m => normalizeStr(m.displayName) === cleanLine);
-
-                        if (!alreadyPending) {
-                            if (highestScore >= 0.50 && bestMatch) {
-                                pendingOcrSessionResults.push({
-                                    type: 'similar',
-                                    clientRef: bestMatch,
-                                    displayName: rawLine.trim(),
-                                    id: bestMatch.id,
-                                    matchType: 'fuzzy',
-                                    similarityScore: Math.round(highestScore * 100),
-                                    similarSuggestion: bestMatch.name,
-                                    selected: true
-                                });
-                            } else {
-                                pendingOcrSessionResults.push({
-                                    type: 'new',
-                                    clientRef: null,
-                                    displayName: rawLine.trim(),
-                                    id: '',
-                                    matchType: 'none',
-                                    similarSuggestion: null,
-                                    selected: false
-                                });
-                            }
+                        if (!pendingOcrSessionResults.some(m => normalizeStr(m.displayName) === cleanLine)) {
+                            pendingOcrSessionResults.push({
+                                type: 'new',
+                                clientRef: null,
+                                displayName: rawLine.trim(),
+                                id: '',
+                                selected: false
+                            });
                         }
                     }
                 }
@@ -1471,75 +1682,42 @@
 
             const resultBox = document.getElementById('ocrResult');
             const resultMsg = document.getElementById('ocrResultMessage');
-            
             resultBox.classList.remove('hidden');
             
             if (pendingOcrSessionResults.length > 0) {
-                resultBox.className = "mt-3 p-3 rounded-lg text-sm bg-emerald-900/30 border border-emerald-800/50 text-emerald-300 flex flex-col gap-2 fade-in";
-                resultMsg.innerHTML = `Escaneo completado. Se detectaron <strong>${pendingOcrSessionResults.length}</strong> elementos. Haz clic en "Revisar y Editar" para verificar coincidencias.`;
+                resultMsg.innerHTML = `Se detectaron <strong>${pendingOcrSessionResults.length}</strong> elementos. Haz clic en "Revisar y Editar".`;
             } else {
-                resultBox.className = "mt-3 p-3 rounded-lg text-sm bg-amber-900/30 border border-amber-800/50 text-amber-300 flex flex-col gap-2 fade-in";
-                resultMsg.innerHTML = "Escaneo completado. No se detectaron nombres nuevos ni clientes en esta imagen.";
+                resultMsg.innerHTML = "No se detectaron nuevos clientes en esta imagen.";
             }
         }
 
         function openOcrReviewModal() {
             const modal = document.getElementById('ocrReviewModal');
-            document.getElementById('reviewModalTitle').innerHTML = `<i class="fa-solid fa-list-check text-emerald-500"></i> Revisión de Detecciones OCR`;
-            document.getElementById('reviewModalSubtitle').textContent = `Se detectaron ${pendingOcrSessionResults.length} elementos en la planilla.`;
+            document.getElementById('reviewModalTitle').innerHTML = `<i class="fa-solid fa-list-check text-emerald-500"></i> Revisión OCR`;
+            document.getElementById('reviewModalSubtitle').textContent = `${pendingOcrSessionResults.length} elementos detectados.`;
             
             const container = document.getElementById('ocrReviewListContainer');
             container.innerHTML = '';
 
-            if (pendingOcrSessionResults.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-500 py-6 text-sm">No hay detecciones pendientes para revisar.</p>`;
-            } else {
-                pendingOcrSessionResults.forEach((item, index) => {
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 text-xs";
-                    
-                    let statusBadge = '';
-                    if (item.type === 'existing') {
-                        statusBadge = `<span class="bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded text-[10px]">Exacto</span>`;
-                    } else if (item.type === 'similar') {
-                        statusBadge = `<span class="bg-amber-950 text-amber-400 px-2 py-0.5 rounded text-[10px]">Similar (${item.similarityScore}%)</span>`;
-                    } else {
-                        statusBadge = `<span class="bg-blue-950 text-blue-400 px-2 py-0.5 rounded text-[10px]">Nuevo</span>`;
-                    }
-
-                    div.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="checkbox" id="ocrItemCheck_${index}" ${item.selected ? 'checked' : ''} onchange="toggleOcrItemSelection(${index}, this.checked)" class="w-4 h-4 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500 bg-slate-800 cursor-pointer">
-                                <span class="font-mono text-emerald-400 font-semibold">#${item.id || 'S/N'}</span>
-                            </div>
-                            ${statusBadge}
+            pendingOcrSessionResults.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 text-xs";
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="ocrItemCheck_${index}" ${item.selected ? 'checked' : ''} onchange="pendingOcrSessionResults[${index}].selected = this.checked" class="w-4 h-4 rounded border-slate-700 text-emerald-600 bg-slate-800 cursor-pointer">
+                            <span class="font-mono text-emerald-400 font-semibold">#${item.id || 'S/N'}</span>
                         </div>
-                        <div>
-                            <label class="text-[10px] text-slate-400 block mb-0.5">Texto leído / Nombre:</label>
-                            <input type="text" id="ocrItemName_${index}" value="${escapeHTML(item.displayName)}" oninput="updateOcrItemName(${index}, this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-emerald-500">
-                        </div>
-                        ${item.similarSuggestion ? `<p class="text-[11px] text-amber-300/80"><i class="fa-solid fa-lightbulb mr-1"></i> Sugerencia DB: <strong>${escapeHTML(item.similarSuggestion)}</strong></p>` : ''}
-                    `;
-                    container.appendChild(div);
-                });
-            }
+                        <span class="text-[10px] ${item.type === 'existing' ? 'text-emerald-400' : 'text-blue-400'}">${item.type === 'existing' ? 'Existente' : 'Nuevo'}</span>
+                    </div>
+                    <input type="text" id="ocrItemName_${index}" value="${escapeHTML(item.displayName)}" oninput="pendingOcrSessionResults[${index}].displayName = this.value" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-emerald-500">
+                `;
+                container.appendChild(div);
+            });
 
             document.getElementById('reviewModalConfirmBtn').onclick = confirmAndApplyOcrResults;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-        }
-
-        function toggleOcrItemSelection(index, isChecked) {
-            if (pendingOcrSessionResults[index]) {
-                pendingOcrSessionResults[index].selected = isChecked;
-            }
-        }
-
-        function updateOcrItemName(index, val) {
-            if (pendingOcrSessionResults[index]) {
-                pendingOcrSessionResults[index].displayName = val;
-            }
         }
 
         function confirmAndApplyOcrResults() {
@@ -1551,16 +1729,10 @@
                 if (!item.selected) return;
 
                 let targetClient = item.clientRef;
-
                 if (!targetClient) {
                     targetClient = clients.find(c => c.name.toUpperCase() === item.displayName.toUpperCase());
-                    
                     if (!targetClient) {
-                        targetClient = {
-                            id: item.id || '',
-                            name: item.displayName.trim(),
-                            visitDates: []
-                        };
+                        targetClient = { id: item.id || '', name: item.displayName.trim(), phone: '', address: '', zone: '', lat: '', lng: '', visitDates: [] };
                         clients.unshift(targetClient);
                     }
                 }
