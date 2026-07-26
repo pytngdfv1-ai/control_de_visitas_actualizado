@@ -1012,12 +1012,12 @@
                 
                 let mapButtonHtml = '';
                 if (client.lat && client.lng) {
-                    const osmUrl = `https://www.openstreetmap.org/?mlat=${client.lat}&mlon=${client.lng}#map=17/${client.lat}/${client.lng}`;
-                    mapButtonHtml = `<a href="${osmUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Ver ubicación en mapa"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${client.lat},${client.lng}`;
+                    mapButtonHtml = `<a href="${mapsUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Ver ubicación en Google Maps"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
                 } else if (client.address) {
                     const encodedAddr = encodeURIComponent(client.address + (client.zone ? ', ' + client.zone : ''));
-                    const osmSearchUrl = `https://www.openstreetmap.org/search?query=${encodedAddr}`;
-                    mapButtonHtml = `<a href="${osmSearchUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Buscar dirección en mapa"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddr}`;
+                    mapButtonHtml = `<a href="${mapsUrl}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors" title="Buscar dirección en Google Maps"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>`;
                 }
 
                 let phoneButtonHtml = '';
